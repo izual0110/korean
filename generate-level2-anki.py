@@ -25,6 +25,32 @@ data1 = [
     ["섬", "остров", "seom"]
 ]
 
+data2 = [
+    ["청소하다", "убирать", "cheong-so-ha-da"],
+    ["빨래하다", "стирать (бельё)", "ppal-lae-ha-da"],
+    ["요리하다", "готовить (еду)", "yo-ri-ha-da"],
+    ["책장을 정리하다", "наводить порядок на книжной полке", "chaek-jjang-eul jeong-ri-ha-da"],
+    ["방을 치우다", "убирать комнату", "bang-eul chi-u-da"],
+    ["방을 쓸다", "подметать комнату", "bang-eul sseul-da"],
+    ["방을 닦다", "мыть комнату", "bang-eul dak-tta"],
+    ["청소기를 돌리다", "пылесосить", "cheong-so-gi-reul dol-li-da"],
+    ["쓰레기를 버리다", "выбрасывать мусор", "sseu-re-gi-reul beo-ri-da"],
+    ["분리수거를 하다", "сортировать мусор", "bun-ri-su-geo-reul ha-da"],
+    ["빨래를 널다", "развешивать бельё", "ppal-lae-reul neol-da"],
+    ["빨래를 개다", "складывать бельё", "ppal-lae-reul kae-da"],
+    ["세탁기를 돌리다", "включать стиральную машину", "se-tak-gi-reul dol-li-da"],
+    ["다림질을 하다", "гладить", "da-rim-jil-eul ha-da"],
+    ["손빨래를 하다", "стирать вручную", "son-ppal-lae-reul ha-da"],
+    ["음식을 만들다", "готовить еду", "eum-sik-eul man-deul-da"],
+    ["설거지하다", "мыть посуду", "seol-geo-ji-ha-da"],
+    ["퇴근", "возвращение с работы", "toe-geun"],
+    ["잊다", "забывать", "it-da"],
+    ["장 보다", "ходить за покупками", "jang bo-da"],
+    ["걸레질", "протирать (шваброй/тряпкой)", "geol-le-jil"],
+    ["음식물 쓰레기", "пищевые отходы", "eum-sik-mul sseu-re-gi"],
+    ["급한 일이 생기다", "возникло срочное дело", "geu-pan il-i saeng-gi-da"]
+]
+
 def write(data, file):
     for row in data:
         file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
@@ -34,5 +60,6 @@ csv_path = "output/KIIP2.csv"
 
 with open(csv_path, "w", encoding="utf-8") as f:
     write(data1, f)
+    write(data2, f)
     
 csv_path
