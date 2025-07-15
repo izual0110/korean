@@ -30,7 +30,7 @@ csv_path = "output/KIIP2_Words_Anki_Manual.csv"
 
 with open(csv_path, "w", encoding="utf-8") as f:
     for row in data:
-        f.write(row[0]+"," + row[1] + " ("+row[2]+")" + "\n")
-        f.write(row[1]+"," + row[0] + " ("+row[2]+")" + "\n")
+        f.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
+        f.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
 
 csv_path
