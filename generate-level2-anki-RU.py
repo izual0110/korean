@@ -56,7 +56,7 @@ def write(data, file):
         file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
         file.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
 
-csv_path = "output/KIIP2.csv"
+csv_path = "output/KIIP2-RU.csv"
 
 with open(csv_path, "w", encoding="utf-8") as f:
     write(data1, f)
