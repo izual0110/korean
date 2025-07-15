@@ -30,7 +30,6 @@ def write(data, file):
         file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
         file.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
 
-# Создание CSV-файла без использования pandas
 csv_path = "output/KIIP2.csv"
 
 with open(csv_path, "w", encoding="utf-8") as f:
