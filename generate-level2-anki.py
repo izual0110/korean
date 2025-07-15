@@ -1,4 +1,4 @@
-data = [
+data1 = [
     ["오래되다", "быть старым, давним", "o-rae-doe-da"],
     ["호수", "озеро", "ho-su"],
     ["맥주", "пиво", "maek-jju"],
@@ -25,12 +25,15 @@ data = [
     ["섬", "остров", "seom"]
 ]
 
+def write(data, file):
+    for row in data:
+        file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
+        file.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
+
 # Создание CSV-файла без использования pandas
-csv_path = "output/KIIP2_Words_Anki_Manual.csv"
+csv_path = "output/KIIP2.csv"
 
 with open(csv_path, "w", encoding="utf-8") as f:
-    for row in data:
-        f.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
-        f.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
-
+    write(data1, f)
+    
 csv_path
