@@ -80,9 +80,9 @@ data3 = [
     ["바지", "брюки", "ba-ji"],
     ["조끼", "жилет", "jo-kki"],
     ["하다", "носить (аксессуары)", "ha-da"],
-    ["스카프", "шарф", "seu-ka-peu"],
+    ["스카프", "шарф, платок", "seu-ka-peu"],
     ["귀걸이", "серьги", "gwi-geol-i"],
-    ["목도리", "шарф", "mok-do-ri"],
+    ["목도리", "тёплый шарф", "mok-do-ri"],
     ["목걸이", "ожерелье", "mok-geol-i"],
     ["길이", "длина", "gil-i"],
     ["짧다", "короткий", "jjalb-da"],
@@ -121,19 +121,24 @@ data4 = [
     ["시험 범위", "объём экзамена", "si-heom beom-wi"]
 ]
 
-
-
-def write(data, file):
+def write(data, file, seen):
     for row in data:
         file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
         file.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
+        if row[0] in seen:
+            raise ValueError(f"Duplicate line detected: {row[0].strip()}")
+        if row[1] in seen:
+            raise ValueError(f"Duplicate line detected: {row[1].strip()}")
+        seen.add(row[0])
+        seen.add(row[1])
 
 csv_path = "output/KIIP2-RU.csv"
+seen_lines = set()
 
 with open(csv_path, "w", encoding="utf-8") as f:
-    write(data1, f)
-    write(data2, f)
-    write(data3, f)
-    write(data4, f)
+    write(data1, f, seen_lines)
+    write(data2, f, seen_lines)
+    write(data3, f, seen_lines)
+    write(data4, f, seen_lines)
     
 csv_path

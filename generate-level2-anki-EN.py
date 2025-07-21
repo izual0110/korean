@@ -82,7 +82,7 @@ data3 = [
     ["하다", "to wear (accessories)", "ha-da"],
     ["스카프", "scarf", "seu-ka-peu"],
     ["귀걸이", "earrings", "gwi-geol-i"],
-    ["목도리", "scarf", "mok-do-ri"],
+    ["목도리", "winter muffler", "mok-do-ri"],
     ["목걸이", "necklace", "mok-geol-i"],
     ["길이", "length", "gil-i"],
     ["짧다", "short", "jjalb-da"],
@@ -121,17 +121,25 @@ data4 = [
     ["시험 범위", "exam scope", "si-heom beom-wi"]
 ]
 
-def write(data, file):
+def write(data, file, seen):
     for row in data:
         file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
         file.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
+        if row[0] in seen:
+            raise ValueError(f"Duplicate line detected: {row[0].strip()}")
+        if row[1] in seen:
+            raise ValueError(f"Duplicate line detected: {row[1].strip()}")
+        seen.add(row[0])
+        seen.add(row[1])
+
 
 csv_path = "output/KIIP2-EN.csv"
+seen_lines = set()
 
 with open(csv_path, "w", encoding="utf-8") as f:
-    write(data1, f)
-    write(data2, f)
-    write(data3, f)
-    write(data4, f)
+    write(data1, f, seen_lines)
+    write(data2, f, seen_lines)
+    write(data3, f, seen_lines)
+    write(data4, f, seen_lines)
     
 csv_path
