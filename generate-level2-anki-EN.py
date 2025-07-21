@@ -121,6 +121,51 @@ data4 = [
     ["시험 범위", "exam scope", "si-heom beom-wi"]
 ]
 
+data5 = [
+    ["열이 나다", "to have a fever", "yeol-i na-da"],
+    ["콧물이 나다", "to have a runny nose", "kon-mul-i na-da"],
+    ["머리가 아프다", "to have a headache", "meo-ri-ga a-peu-da"],
+    ["기침을 하다", "to cough", "gi-chim-eul ha-da"],
+    ["이가 아프다", "to have a toothache", "i-ga a-peu-da"],
+    ["목이 붓다", "to have a swollen throat", "mo-gi but-da"],
+    ["배가 아프다", "to have a stomachache", "bae-ga a-peu-da"],
+    ["설사를 하다", "to have diarrhea", "seol-sa-reul ha-da"],
+    ["부러지다", "to break (a bone)", "bu-reo-ji-da"],
+    ["다치다", "to get injured", "da-chi-da"],
+    ["해열제", "antipyretic (fever reducer)", "hae-yeol-je"],
+    ["두통약", "headache medicine", "du-tong-yak"],
+    ["감기약", "cold medicine", "gam-gi-yak"],
+    ["소화제", "digestive medicine", "so-hwa-je"],
+    ["파스", "pain relief patch", "pa-seu"],
+    ["밴드", "band-aid", "baen-deu"],
+    ["붙이다", "to stick, to attach", "bu-chi-da"],
+    ["소독약", "antiseptic", "so-dok-yak"],
+    ["연고", "ointment", "yeon-go"],
+    ["바르다", "to apply (ointment)", "ba-reu-da"],
+    ["용법", "usage instructions", "yong-beop"],
+    ["회", "times (medicine intake)", "hoe"],
+    ["분", "dose division", "bun"],
+    ["식전", "before meals", "sik-jeon"],
+    ["식후", "after meals", "sik-hu"],
+    ["댓글", "comment", "daet-geul"]
+]
+
+data6 = [
+    ["기분이 좋다", "to feel good", "gi-bun-i jo-ta"],
+    ["기쁘다", "to be glad", "gi-ppeu-da"],
+    ["행복하다", "to be happy", "haeng-bok-ha-da"],
+    ["신나다", "to be excited", "sin-na-da"],
+    ["반갑다", "to be pleased (to meet)", "ban-gap-da"],
+    ["즐겁다", "to be joyful", "jeul-geop-da"],
+    ["기분이 안 좋다", "to feel bad", "gi-bun-i an jo-ta"],
+    ["슬프다", "to be sad", "seul-peu-da"],
+    ["외롭다", "to be lonely", "oe-rop-da"],
+    ["화나다", "to be angry", "hwa-na-da"],
+    ["걱정되다", "to be worried", "geok-jeong-doe-da"],
+    ["짜증나다", "to be annoyed", "jja-jeung-na-da"],
+    ["답답하다", "to feel frustrated / stuffy", "dap-dap-ha-da"]
+]
+
 def write(data, file, seen):
     for row in data:
         file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
@@ -141,5 +186,7 @@ with open(csv_path, "w", encoding="utf-8") as f:
     write(data2, f, seen_lines)
     write(data3, f, seen_lines)
     write(data4, f, seen_lines)
+    write(data5, f, seen_lines)
+    write(data6, f, seen_lines)
     
 csv_path
