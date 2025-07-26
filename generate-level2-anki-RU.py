@@ -168,8 +168,8 @@ data6 = [
 
 def write(data, file, seen):
     for row in data:
-        file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + " ("+row[2]+")" + "\"" + "\n")
-        file.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + " ("+row[2]+")" + "\"" + "\n")
+        file.write("\"" + row[0] + "\"" + "," + "\"<b>" + row[1] + "</b> ("+row[2]+")" + "\"" + "\n")
+        file.write("\"" + row[1] + "\"" + "," + "\"<b>" + row[0] + "</b> ("+row[2]+")" + "\"" + "\n")
         if row[0] in seen:
             raise ValueError(f"Duplicate line detected: {row[0].strip()}")
         if row[1] in seen:
