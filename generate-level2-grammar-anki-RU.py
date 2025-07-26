@@ -42,8 +42,8 @@ grammar2 = [
 
 def write(data, file, seen):
     for row in data:
-        file.write("\"" + row[0] + "\"" + "," + "\"" + row[1] + "; Example: "+row[2]+" ("+row[3]+")" + "\"" + "\n")
-        file.write("\"" + row[1] + "\"" + "," + "\"" + row[0] + "; Example: "+row[2]+" ("+row[3]+")" + "\"" + "\n")
+        file.write("\"" + row[0] + "\"" + "," + "\"<b>" + row[1] + "</b>; Example: "+row[2]+" ("+row[3]+")" + "\"" + "\n")
+        file.write("\"" + row[1] + "\"" + "," + "\"<b>" + row[0] + "</b>; Example: "+row[2]+" ("+row[3]+")" + "\"" + "\n")
         if row[0] in seen:
             raise ValueError(f"Duplicate line detected: {row[0].strip()}")
         if row[1] in seen:
