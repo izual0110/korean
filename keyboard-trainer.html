@@ -25,38 +25,43 @@
     body{
       margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
       background:linear-gradient(180deg,#0b1224,var(--bg)); color:var(--text);
-      display:grid; grid-template-rows:auto 1fr auto; gap:14px;
+      min-height:100vh; display:grid; grid-template-rows:auto 1fr; gap:12px;
     }
     header{
       display:flex; align-items:center; justify-content:space-between;
-      padding:12px 16px; background:var(--panel); border-bottom:1px solid #101525;
-      gap:12px; flex-wrap:wrap;
+      padding:10px 16px; background:var(--panel); border-bottom:1px solid #101525;
+      gap:10px; flex-wrap:wrap;
     }
     header .title{font-weight:700; letter-spacing:0.2px}
     header .hint{color:var(--muted); font-size:14px}
     header .controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 
     main{
-      display:grid; grid-template-columns:1fr 280px; gap:16px; padding:0 16px;
+      display:grid; grid-template-rows:minmax(0,1fr) auto; gap:12px; padding:0 16px 12px; min-height:0;
     }
+
+    .workspace{
+      display:grid; grid-template-columns:1fr 260px; gap:12px; min-height:0;
+    }
+    .workspace > *{min-height:0;}
 
     .lane{
       background:var(--panel-2); border:1px solid #253049; border-radius:var(--radius);
-      min-height:240px; display:grid; place-items:center; position:relative; overflow:hidden;
+      min-height:0; display:grid; place-items:center; position:relative; overflow:hidden;
     }
-    .lane-inner{ width:min(900px,95%); position:relative; padding:28px 20px; }
-    .panel-bar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap }
+    .lane-inner{ width:min(900px,95%); position:relative; padding:20px 16px; }
+    .panel-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap }
     .btn{ background:#233051; color:#dbeafe; border:1px solid #2f3d61; border-radius:10px; padding:8px 10px; cursor:pointer; }
     .btn:active{ transform:translateY(1px) }
     .meta{ color:var(--muted); font-size:14px }
 
     .now-word{
-      font-variant-ligatures:none; display:grid; gap:10px; padding:14px 18px;
+      font-variant-ligatures:none; display:grid; gap:8px; padding:12px 16px;
       background:rgba(255,255,255,0.02); border-radius:12px; border:1px solid #26314a;
       position:relative;
     }
-    .display-word{font-size:40px; line-height:1.1; letter-spacing:1px; justify-self:flex-start}
-    .sequence{font-size:24px; letter-spacing:0.5px; display:flex; align-items:center; gap:2px}
+    .display-word{font-size:32px; line-height:1.1; letter-spacing:1px; justify-self:flex-start}
+    .sequence{font-size:20px; letter-spacing:0.4px; display:flex; align-items:center; gap:2px}
     .typed{ color:var(--ok); }
     .pending{ color:var(--text); opacity:.9 }
     .sequence .caret{ display:inline-block; position:relative; width:0; }
@@ -71,29 +76,28 @@
 
     .side{
       background:var(--panel-2); border:1px solid #253049; border-radius:var(--radius);
-      padding:10px; display:flex; flex-direction:column; gap:8px; min-height:240px;
+      padding:10px; display:flex; flex-direction:column; gap:8px; min-height:0;
     }
     .side h3{margin:6px 6px 4px 6px; font-size:14px; color:var(--muted); font-weight:600}
-    .words{ overflow:auto; padding:6px; display:flex; flex-direction:column; gap:6px; }
+    .words{ overflow:auto; padding:6px; display:flex; flex-direction:column; gap:6px; flex:1; }
     .word{ padding:8px 10px; background:#192237; border:1px solid #253049; border-radius:10px; color:#cbd5e1; }
     .word.current{ border-color:var(--next); outline:2px solid rgba(245,158,11,.25) }
     .word.done{ opacity:.6; text-decoration:line-through; }
 
-    .kb-wrap{ padding:0 16px 16px }
+    .kb-wrap{ padding:12px; background:var(--panel); border:1px solid #101525; border-radius:16px; display:flex; flex-direction:column; gap:10px; align-self:start; }
     .kb{
-      user-select:none; background:var(--panel); border-top:1px solid #101525; border-radius:18px 18px 0 0;
-      padding:16px; display:flex; flex-direction:column; gap:10px;
+      user-select:none; display:flex; flex-direction:column; gap:8px;
     }
-    .row{ display:flex; gap:8px; justify-content:center; flex-wrap:nowrap }
+    .row{ display:flex; gap:6px; justify-content:center; flex-wrap:nowrap }
     .key{
-      min-width:36px; height:44px; background:var(--key); border:1px solid var(--key-edge);
-      border-radius:10px; display:grid; place-items:center; padding:0 8px; font-weight:600;
+      min-width:32px; height:38px; background:var(--key); border:1px solid var(--key-edge);
+      border-radius:10px; display:grid; place-items:center; padding:0 6px; font-weight:600;
       filter: drop-shadow(0 2px 0 #283040);
-      position:relative; color:#e2e8f0; font-size:15px;
+      position:relative; color:#e2e8f0; font-size:14px;
     }
-    .key.small{ min-width:48px }
-    .key.medium{ min-width:72px }
-    .key.large{ min-width:120px }
+    .key.small{ min-width:44px }
+    .key.medium{ min-width:64px }
+    .key.large{ min-width:100px }
     .key .cap{ opacity:.95; text-align:center }
     .key.left{ box-shadow: inset 0 0 0 2px rgba(96,165,250,.15) }
     .key.right{ box-shadow: inset 0 0 0 2px rgba(244,114,182,.15) }
@@ -105,10 +109,9 @@
     }
 
     @media (max-width: 880px){
-      main{ grid-template-columns:1fr; }
-      .kb-wrap{ padding:0 8px 8px }
-      .display-word{font-size:32px}
-      .sequence{font-size:20px}
+      .workspace{ grid-template-columns:1fr; }
+      .display-word{font-size:26px}
+      .sequence{font-size:16px}
     }
 
     .error-flash{ animation:errFlash .28s ease; }
@@ -122,7 +125,7 @@
       40%, 60% { transform: translateX(4px); }
     }
 
-    #test-panel{font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#cbd5e1; background:#0d1326; border-top:1px solid #101525; padding:8px 12px}
+    #test-panel{font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#cbd5e1; background:#0d1326; border:1px solid #2a3349; border-radius:12px; padding:8px 12px; width:100%;}
     #test-panel summary{cursor:pointer}
 
     select{
@@ -147,34 +150,35 @@
   </header>
 
   <main>
-    <section class="lane" aria-live="polite">
-      <div class="lane-inner">
-        <div class="panel-bar">
-          <div class="meta" id="meta">Слово 1 · Точность — 100% · Ошибок: 0</div>
-          <div class="note-sequence" id="seqNote">Печатаем раскладкой: корейская (2-пальцевая)</div>
-        </div>
-        <div class="now-word" id="nowWord">
-          <div class="display-word" id="displayWord"></div>
-          <div class="sequence">
-            <span class="typed" id="typed"></span>
-            <span class="caret" aria-hidden="true"></span>
-            <span class="pending" id="pending"></span>
+    <div class="workspace">
+      <section class="lane" aria-live="polite">
+        <div class="lane-inner">
+          <div class="panel-bar">
+            <div class="meta" id="meta">Слово 1 · Точность — 100% · Ошибок: 0</div>
+            <div class="note-sequence" id="seqNote">Печатаем раскладкой: корейская (2-пальцевая)</div>
+          </div>
+          <div class="now-word" id="nowWord">
+            <div class="display-word" id="displayWord"></div>
+            <div class="sequence">
+              <span class="typed" id="typed"></span>
+              <span class="caret" aria-hidden="true"></span>
+              <span class="pending" id="pending"></span>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <aside class="side">
-      <h3>Список слов</h3>
-      <div class="words" id="wordList"></div>
-    </aside>
+      <aside class="side">
+        <h3>Список слов</h3>
+        <div class="words" id="wordList"></div>
+      </aside>
+    </div>
+
+    <div class="kb-wrap">
+      <div class="kb" id="kb"></div>
+      <details id="test-panel"><summary>Тесты (раскрыть)</summary><pre id="test-output">Запуск тестов…</pre></details>
+    </div>
   </main>
-
-  <div class="kb-wrap">
-    <div class="kb" id="kb"></div>
-  </div>
-
-  <details id="test-panel"><summary>Тесты (раскрыть)</summary><pre id="test-output">Запуск тестов…</pre></details>
 
   <script>
     const leftHandCodes = new Set([
