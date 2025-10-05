@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Клавиатурный тренажёр — корейская и латинская раскладки</title>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --panel:#111827;
+      --panel-2:#1f2937;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --ok:#10b981;
+      --err:#ef4444;
+      --next:#f59e0b;
+      --left:#60a5fa;
+      --right:#f472b6;
+      --key:#374151;
+      --key-edge:#4b5563;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+      background:linear-gradient(180deg,#0b1224,var(--bg)); color:var(--text);
+      min-height:100vh; display:grid; grid-template-rows:auto 1fr; gap:12px;
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 16px; background:var(--panel); border-bottom:1px solid #101525;
+      gap:10px; flex-wrap:wrap;
+    }
+    header .title{font-weight:700; letter-spacing:0.2px}
+    header .hint{color:var(--muted); font-size:14px}
+    header .controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    main{
+      display:grid; grid-template-rows:minmax(0,1fr) auto; gap:12px; padding:0 16px 12px; min-height:0;
+    }
+
+    .workspace{
+      display:grid; grid-template-columns:1fr 260px; gap:12px; min-height:0;
+    }
+    .workspace > *{min-height:0;}
+
+    .lane{
+      background:var(--panel-2); border:1px solid #253049; border-radius:var(--radius);
+      min-height:0; display:grid; place-items:center; position:relative; overflow:hidden;
+    }
+    .lane-inner{ width:min(900px,95%); position:relative; padding:20px 16px; }
+    .panel-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap }
+    .btn{ background:#233051; color:#dbeafe; border:1px solid #2f3d61; border-radius:10px; padding:8px 10px; cursor:pointer; }
+    .btn:active{ transform:translateY(1px) }
+    .meta{ color:var(--muted); font-size:14px }
+
+    .now-word{
+      font-variant-ligatures:none; display:grid; gap:14px; padding:14px 18px;
+      background:rgba(255,255,255,0.02); border-radius:12px; border:1px solid #26314a;
+      position:relative;
+    }
+    .display-word{display:flex; flex-direction:column; gap:8px; justify-self:flex-start}
+    .display-word .word-main{font-size:clamp(48px, min(18vw, 128px), 128px); line-height:0.9; letter-spacing:1px; font-weight:700;}
+    .display-word .word-hint{font-size:clamp(18px, 4.5vw, 28px); color:var(--muted); font-weight:500;}
+    .sequence{font-size:22px; letter-spacing:0.6px; display:flex; align-items:center; gap:4px}
+    .typed{ color:var(--ok); }
+    .pending{ color:var(--text); opacity:.9 }
+    .sequence .caret{ display:inline-block; position:relative; width:0; }
+    .sequence .caret::after{
+      content:""; position:absolute; left:-2px; top:10%; width:2px; height:80%;
+      background:var(--next); animation:blink 1.1s steps(2) infinite;
+      box-shadow:0 0 8px rgba(245,158,11,.6);
+    }
+    @keyframes blink{ 50%{opacity:0} }
+
+    .note-sequence{font-size:13px; color:var(--muted)}
+
+    .side{
+      background:var(--panel-2); border:1px solid #253049; border-radius:var(--radius);
+      padding:10px; display:flex; flex-direction:column; gap:8px; min-height:0;
+    }
+    .side h3{margin:6px 6px 4px 6px; font-size:14px; color:var(--muted); font-weight:600}
+    .words{ overflow:auto; padding:6px; display:flex; flex-direction:column; gap:6px; flex:1; }
+    .word{ padding:10px 12px; background:#192237; border:1px solid #253049; border-radius:10px; color:#cbd5e1; display:flex; flex-direction:column; gap:4px; }
+    .word.current{ border-color:var(--next); outline:2px solid rgba(245,158,11,.25) }
+    .word.done{ opacity:.55; }
+    .word .word-main{font-weight:600; font-size:17px; letter-spacing:0.4px;}
+    .word .word-hint{font-size:13px; color:var(--muted);}
+
+    .kb-wrap{ padding:12px; background:var(--panel); border:1px solid #101525; border-radius:16px; display:flex; flex-direction:column; gap:10px; align-self:start; }
+    .kb{
+      user-select:none; display:flex; flex-direction:column; gap:8px;
+    }
+    .row{ display:flex; gap:6px; justify-content:center; flex-wrap:nowrap }
+    .key{
+      min-width:32px; height:38px; background:var(--key); border:1px solid var(--key-edge);
+      border-radius:10px; display:grid; place-items:center; padding:0 6px; font-weight:600;
+      filter: drop-shadow(0 2px 0 #283040);
+      position:relative; color:#e2e8f0; font-size:14px;
+    }
+    .key.small{ min-width:44px }
+    .key.medium{ min-width:64px }
+    .key.large{ min-width:100px }
+    .key .cap{ opacity:.95; text-align:center }
+    .key.left{ box-shadow: inset 0 0 0 2px rgba(96,165,250,.15) }
+    .key.right{ box-shadow: inset 0 0 0 2px rgba(244,114,182,.15) }
+    .key.next{ outline:3px solid var(--next); z-index:2; }
+    .key.mod-hint{ outline:3px solid rgba(245,158,11,.45); z-index:1; }
+    .badge{
+      position:absolute; bottom:-20px; font-size:11px; padding:1px 6px; border-radius:999px;
+      background:#111827; border:1px solid #2a3349; color:#cbd5e1; white-space:nowrap
+    }
+
+    @media (max-width: 880px){
+      .workspace{ grid-template-columns:1fr; }
+      .display-word{font-size:26px}
+      .sequence{font-size:16px}
+    }
+
+    .error-flash{ animation:errFlash .28s ease; }
+    @keyframes errFlash{ from{background:rgba(239,68,68,.16);} to{background:rgba(255,255,255,0.02);} }
+
+    .shake{ animation:shake .28s cubic-bezier(.36,.07,.19,.97); }
+    @keyframes shake{
+      10%, 90% { transform: translateX(-1px); }
+      20%, 80% { transform: translateX(2px); }
+      30%, 50%, 70% { transform: translateX(-4px); }
+      40%, 60% { transform: translateX(4px); }
+    }
+
+    #test-panel{font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#cbd5e1; background:#0d1326; border:1px solid #2a3349; border-radius:12px; padding:8px 12px; width:100%;}
+    #test-panel summary{cursor:pointer}
+
+    select{
+      background:#1f2a44; color:#e2e8f0; border:1px solid #2f3d61; border-radius:8px; padding:6px 10px;
+      }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">Клавиатурный тренажёр · корейская и латинская раскладки</div>
+    <div class="controls">
+      <label for="langSelect" class="hint" style="display:flex; align-items:center; gap:6px">Язык:
+        <select id="langSelect">
+          <option value="ko">Корейский · 2-буквенная</option>
+          <option value="en">Английский · QWERTY</option>
+        </select>
+      </label>
+      <label for="levelSelect" class="hint" style="display:flex; align-items:center; gap:6px">Уровень:
+        <select id="levelSelect"></select>
+      </label>
+      <button class="btn" id="btn-shuffle" title="Перемешать слова">Перемешать</button>
+      <button class="btn" id="btn-audio" title="Переключить звук">🔊 Звук: вкл</button>
+    </div>
+    <div class="hint">Фокус не нужен: начинайте печатать. Backspace — исправить, Space/Enter — переход к следующему слову.</div>
+  </header>
+
+  <main>
+    <div class="workspace">
+      <section class="lane" aria-live="polite">
+        <div class="lane-inner">
+          <div class="panel-bar">
+            <div class="meta" id="meta">Слово 1 · Точность — 100% · Ошибок: 0</div>
+            <div class="note-sequence" id="seqNote">Печатаем раскладкой: корейская (2-пальцевая)</div>
+          </div>
+          <div class="now-word" id="nowWord">
+            <div class="display-word" id="displayWord"></div>
+            <div class="sequence">
+              <span class="typed" id="typed"></span>
+              <span class="caret" aria-hidden="true"></span>
+              <span class="pending" id="pending"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <h3>Список слов</h3>
+        <div class="words" id="wordList"></div>
+      </aside>
+    </div>
+
+    <div class="kb-wrap">
+      <div class="kb" id="kb"></div>
+      <details id="test-panel"><summary>Тесты (раскрыть)</summary><pre id="test-output">Запуск тестов…</pre></details>
+    </div>
+  </main>
+
+  <script type="application/json" id="ko-top1000-data">[{"text": "것", "hint": "A thing or  an object"}, {"text": "하다", "hint": "To do"}, {"text": "있다", "hint": "To be"}, {"text": "수", "hint": "way, method, Number"}, {"text": "하다", "hint": "To do"}, {"text": "나", "hint": "I"}, {"text": "없다", "hint": "Do not exist, absent"}, {"text": "않다", "hint": "To not do"}, {"text": "사람", "hint": "Person"}, {"text": "우리", "hint": "we, our"}, {"text": "그", "hint": "He, That"}, {"text": "아니다", "hint": "To not be"}, {"text": "보다", "hint": "To try"}, {"text": "거", "hint": "thing"}, {"text": "보다", "hint": "To see"}, {"text": "같다", "hint": "To be similar"}, {"text": "주다", "hint": "To give, to do for a person"}, {"text": "대하다", "hint": "Face, confront"}, {"text": "가다", "hint": "To go"}, {"text": "년", "hint": "Year"}, {"text": "한", "hint": "One, a single"}, {"text": "말", "hint": "words,speaking"}, {"text": "일", "hint": "Work"}, {"text": "이", "hint": "A person, This"}, {"text": "말하다", "hint": "Speak"}, {"text": "위하다", "hint": "To do for the sake of"}, {"text": "그러나", "hint": "However or  but still"}, {"text": "오다", "hint": "To come"}, {"text": "알다", "hint": "To know"}, {"text": "씨", "hint": "~ Mr."}, {"text": "그렇다", "hint": "That is right or  yes."}, {"text": "크다", "hint": "To be big, large"}, {"text": "일", "hint": "One day"}, {"text": "사회", "hint": "culture,society"}, {"text": "많다", "hint": "many, much"}, {"text": "안", "hint": "~ not ~ + VERB"}, {"text": "좋다", "hint": "To be good"}, {"text": "더", "hint": "More"}, {"text": "받다", "hint": "Receive"}, {"text": "그것", "hint": "That thing"}, {"text": "집", "hint": "House"}, {"text": "나오다", "hint": "Come out"}, {"text": "그리고", "hint": "And or  and then"}, {"text": "문제", "hint": "question,problem"}, {"text": "그런", "hint": "Such a"}, {"text": "살다", "hint": "To live"}, {"text": "저", "hint": "That"}, {"text": "못하다", "hint": "Be impossible"}, {"text": "생각하다", "hint": "To think"}, {"text": "모르다", "hint": "To not know"}, {"text": "속", "hint": "The inside"}, {"text": "만들다", "hint": "To make"}, {"text": "데", "hint": "Place, point, instance"}, {"text": "앞", "hint": "In front of, before"}, {"text": "경우", "hint": "A case or  an instance"}, {"text": "중", "hint": "The center, the middle"}, {"text": "어떤", "hint": "What kind of, what sort of"}, {"text": "잘", "hint": "Well"}, {"text": "그녀", "hint": "She"}, {"text": "먹다", "hint": "Eat, chow down on"}, {"text": "자신", "hint": "one's own self, one's own body"}, {"text": "문화", "hint": "culture"}, {"text": "원", "hint": "A unit of south korean  money, KRW"}, {"text": "생각", "hint": "Thought"}, {"text": "어떻다", "hint": "how,what.. do you think of"}, {"text": "명", "hint": "Person counter"}, {"text": "통하다", "hint": "Run, lead; flow; go through"}, {"text": "그러다", "hint": "and so, and then, well"}, {"text": "그러다", "hint": "and so, and then, well"}, {"text": "소리", "hint": "A sound,noise"}, {"text": "다시", "hint": "Again"}, {"text": "다른", "hint": "Different"}, {"text": "이런", "hint": "Such, like this"}, {"text": "여자", "hint": "woman,female"}, {"text": "개", "hint": "Unit or  piece"}, {"text": "정도", "hint": "grade,degree"}, {"text": "다", "hint": "All, everything"}, {"text": "좀", "hint": "A little"}, {"text": "싶다", "hint": "want,hope"}, {"text": "보이다", "hint": "see,catch sight of"}, {"text": "가지다", "hint": "To have or  take or  hold"}, {"text": "함께", "hint": "Together, with"}, {"text": "아이", "hint": "Child"}, {"text": "지나다", "hint": "pass,elapse,go on"}, {"text": "많이", "hint": "A lot"}, {"text": "시간", "hint": "Time"}, {"text": "너", "hint": "You"}, {"text": "인간", "hint": "A person, a human being"}, {"text": "사실", "hint": "The truth, a fact"}, {"text": "나다", "hint": "To be born"}, {"text": "이렇다", "hint": "Like this"}, {"text": "어머니", "hint": "Mom"}, {"text": "눈", "hint": "Eyes"}, {"text": "뭐", "hint": "Huh? (2) something"}, {"text": "점", "hint": "Store"}, {"text": "의하다", "hint": "To be due to, owing to"}, {"text": "시대", "hint": "An age,period"}, {"text": "다음", "hint": "Next"}, {"text": "이러하다", "hint": "Be this way, be like follows"}, {"text": "누구", "hint": "Who"}, {"text": "곳", "hint": "Place"}, {"text": "여러", "hint": "many,various"}, {"text": "안", "hint": "Inside"}, {"text": "하나", "hint": "One"}, {"text": "세계", "hint": "World"}, {"text": "버리다", "hint": "(following a verb) the verb's action is over, perhaps in a sad way"}, {"text": "위", "hint": "The upper part, above"}, {"text": "운동", "hint": "Motion, movement"}, {"text": "퍼센트", "hint": "Percent"}, {"text": "학교", "hint": "School"}, {"text": "자기", "hint": "Oneself, number one, numerouno, self"}, {"text": "가장", "hint": "Most"}, {"text": "대통령", "hint": "The president"}, {"text": "가지", "hint": "One of the kind or  a sort"}, {"text": "시작하다", "hint": "To start,begin"}, {"text": "바로", "hint": "Right, correctly"}, {"text": "어느", "hint": "Some, a certain"}, {"text": "그래서", "hint": "And so accordingly"}, {"text": "무엇", "hint": "That thing,whatever"}, {"text": "정부", "hint": "Government"}, {"text": "모든", "hint": "Every one"}, {"text": "번", "hint": "Number, how many times"}, {"text": "그거", "hint": "That thing"}, {"text": "돈", "hint": "Money"}, {"text": "국가", "hint": "A state or  a nation"}, {"text": "그런데", "hint": "But or  however"}, {"text": "날", "hint": "Day"}, {"text": "여기", "hint": "A hobby"}, {"text": "모두", "hint": "Everybody"}, {"text": "여성", "hint": "Female"}, {"text": "친구", "hint": "A friend"}, {"text": "마음", "hint": "Heart"}, {"text": "후", "hint": "After"}, {"text": "놓다", "hint": "Put, place"}, {"text": "관계", "hint": "Connection or  relation"}, {"text": "아버지", "hint": "Father"}, {"text": "남자", "hint": "Boy"}, {"text": "어디", "hint": "Where?"}, {"text": "몸", "hint": "body,physique"}, {"text": "얼굴", "hint": "Face"}, {"text": "왜", "hint": "Why?"}, {"text": "나타나다", "hint": "Come out, appear"}, {"text": "지역", "hint": "An area, region"}, {"text": "다르다", "hint": "Be different"}, {"text": "모습", "hint": "shape,body"}, {"text": "물", "hint": "Water"}, {"text": "만나다", "hint": "Meet"}, {"text": "내다", "hint": "produce something"}, {"text": "보이다", "hint": "show,let see"}, {"text": "쓰다", "hint": "To write"}, {"text": "이것", "hint": "This thing"}, {"text": "없이", "hint": "Without"}, {"text": "이번", "hint": "This time"}, {"text": "길", "hint": "Road"}, {"text": "생활", "hint": "lifestyle,livelihood"}, {"text": "쓰다", "hint": "Take (medicine)"}, {"text": "뿐", "hint": "only,alone,merely"}, {"text": "사이", "hint": "space between 2 points; the relationship between 2 people"}, {"text": "방법", "hint": "Way, method"}, {"text": "새롭다", "hint": "To be new,novel"}, {"text": "내다", "hint": "to see through, to make it through sth"}, {"text": "앉다", "hint": "To sit down"}, {"text": "처음", "hint": "First"}, {"text": "손", "hint": "The hand"}, {"text": "몇", "hint": "A few"}, {"text": "그때", "hint": "Then or  at that time"}, {"text": "과정", "hint": "Process or  course"}, {"text": "삶", "hint": "Life"}, {"text": "갖다", "hint": "To hold"}, {"text": "찾다", "hint": "seek,look for"}, {"text": "특히", "hint": "Especially"}, {"text": "시", "hint": "Time"}, {"text": "이상", "hint": "More than, above"}, {"text": "지금", "hint": "Now"}, {"text": "나가다", "hint": "To go out"}, {"text": "이야기", "hint": "Conversation, talk"}, {"text": "교육", "hint": "Education"}, {"text": "사다", "hint": "To buy, purchase"}, {"text": "경제", "hint": "Economy"}, {"text": "아직", "hint": "Still"}, {"text": "잡다", "hint": "seize,catch"}, {"text": "같이", "hint": "Together"}, {"text": "선생님", "hint": "Teacher"}, {"text": "예술", "hint": "Art, an art"}, {"text": "서다", "hint": "To stand"}, {"text": "못", "hint": "Cannot"}, {"text": "역사", "hint": "History"}, {"text": "읽다", "hint": "To read"}, {"text": "결과", "hint": "Result"}, {"text": "내용", "hint": "Contents"}, {"text": "물론", "hint": "Of course"}, {"text": "책", "hint": "A book"}, {"text": "일어나다", "hint": "To rise, get up"}, {"text": "당신", "hint": "Formal you"}, {"text": "시장", "hint": "market,fair"}, {"text": "넣다", "hint": "Put in, set in"}, {"text": "중요하다", "hint": "To be important,weighty"}, {"text": "무슨", "hint": "What, what kind of"}, {"text": "느끼다", "hint": "To feel"}, {"text": "어렵다", "hint": "To be hard, difficult"}, {"text": "힘", "hint": "Power"}, {"text": "너무", "hint": "Too much"}, {"text": "나라", "hint": "A country"}, {"text": "부르다", "hint": "To call"}, {"text": "의미", "hint": "A meaning, a sense"}, {"text": "자리", "hint": "seat,spot"}, {"text": "밝히다", "hint": "To light up"}, {"text": "죽다", "hint": "die,pass away"}, {"text": "이미", "hint": "Already"}, {"text": "쪽", "hint": "Way, direction"}, {"text": "정치", "hint": "Politics"}, {"text": "국민", "hint": "The people or  a nationality"}, {"text": "생명", "hint": "Life"}, {"text": "얘기", "hint": "Story"}, {"text": "학생", "hint": "Student"}, {"text": "연구", "hint": "Research"}, {"text": "엄마", "hint": "Mamma"}, {"text": "이름", "hint": "Name"}, {"text": "하나", "hint": "One"}, {"text": "내리다", "hint": "Descend"}, {"text": "사건", "hint": "An event,incident"}, {"text": "및", "hint": "As well as"}, {"text": "쉽다", "hint": "To be easy"}, {"text": "짓다", "hint": "To make, build ; to form a line (a group)"}, {"text": "이유", "hint": "Reason"}, {"text": "필요하다", "hint": "To need"}, {"text": "글", "hint": "words, a verse"}, {"text": "생기다", "hint": "arise,occur,happen"}, {"text": "사용하다", "hint": "To use"}, {"text": "남편", "hint": "Husband"}, {"text": "밖", "hint": "The outside"}, {"text": "세상", "hint": "The world,society"}, {"text": "작다", "hint": "Small"}, {"text": "타다", "hint": "Ride (bus)"}, {"text": "대학", "hint": "University"}, {"text": "작품", "hint": "A work of art"}, {"text": "상황", "hint": "State of things"}, {"text": "가운데", "hint": "In the middle"}, {"text": "보내다", "hint": "Send"}, {"text": "즉", "hint": "namely,that is to say"}, {"text": "상태", "hint": "condition,state"}, {"text": "이후", "hint": "After that"}, {"text": "당시", "hint": "At that time"}, {"text": "문학", "hint": "Literature"}, {"text": "더욱", "hint": "More and more"}, {"text": "아주", "hint": "Extremely"}, {"text": "지방", "hint": "A locality, district"}, {"text": "밤", "hint": "Night"}, {"text": "높다", "hint": "High"}, {"text": "최근", "hint": "Recently"}, {"text": "채", "hint": "As it is, no change"}, {"text": "현실", "hint": "Actuality, reality"}, {"text": "환경", "hint": "Environment"}, {"text": "컴퓨터", "hint": "Computer"}, {"text": "먼저", "hint": "First"}, {"text": "다니다", "hint": "Go to and from a aplace"}, {"text": "얼마나", "hint": "How many, how much"}, {"text": "자체", "hint": "one's own body"}, {"text": "열다", "hint": "Open"}, {"text": "머리", "hint": "Head"}, {"text": "묻다", "hint": "to Ask"}, {"text": "남다", "hint": "Remain, be left over"}, {"text": "부분", "hint": "part,portion"}, {"text": "기업", "hint": "An enterprise or business"}, {"text": "변화", "hint": "Change, transformation"}, {"text": "아들", "hint": "son,baby"}, {"text": "아", "hint": "Oh dear"}, {"text": "선거", "hint": "An election"}, {"text": "관하다", "hint": "Refer to or  be about"}, {"text": "분", "hint": "Minutes"}, {"text": "그냥", "hint": "Just because or  in that condition"}, {"text": "나누다", "hint": "To divide"}, {"text": "이용하다", "hint": "To use, make use of"}, {"text": "거의", "hint": "Almost or  nearly"}, {"text": "곧", "hint": "Soon"}, {"text": "중심", "hint": "The nucleus, the focus, the heart"}, {"text": "활동", "hint": "Activity"}, {"text": "오늘", "hint": "Today"}, {"text": "서로", "hint": "mutually,one another"}, {"text": "관심", "hint": "Concern or  interest"}, {"text": "역시", "hint": "As expected, likewise"}, {"text": "이거", "hint": "This thing"}, {"text": "애", "hint": "A baby, or a slightly derogative word for person"}, {"text": "광고", "hint": "Advertisement"}, {"text": "나다", "hint": "To come out, grow, spring up"}, {"text": "방", "hint": "A room"}, {"text": "정신", "hint": "mind,spirit"}, {"text": "이르다", "hint": "To reach, arrive, get at"}, {"text": "이루다", "hint": "Accomplish, complete"}, {"text": "아침", "hint": "Morning"}, {"text": "웃다", "hint": "To laugh, smile"}, {"text": "현상", "hint": "The present situation, state"}, {"text": "기술", "hint": "Art or  technique or  ability"}, {"text": "전체", "hint": "The whole, the entire section"}, {"text": "그래", "hint": "So or  yes or  that's right"}, {"text": "얻다", "hint": "Get, obtain"}, {"text": "아름답다", "hint": "To be beautiful"}, {"text": "끝", "hint": "The end"}, {"text": "민족", "hint": "race,nation,people"}, {"text": "간", "hint": "The interval between"}, {"text": "조사", "hint": "investigation,inquiry"}, {"text": "듯", "hint": "To be like something"}, {"text": "입", "hint": "Mouth"}, {"text": "뭐", "hint": "Huh? (2) something"}, {"text": "그대로", "hint": "Like that"}, {"text": "영화", "hint": "A movie"}, {"text": "필요", "hint": "Need, requirement,necessity"}, {"text": "줄", "hint": "way,method"}, {"text": "하늘", "hint": "The sky"}, {"text": "년대", "hint": "Year"}, {"text": "과학", "hint": "Science"}, {"text": "자연", "hint": "Nature"}, {"text": "정말", "hint": "Really"}, {"text": "구조", "hint": "Construction or  structure"}, {"text": "결국", "hint": "After all or  in the end"}, {"text": "밥", "hint": "Rice, a meal"}, {"text": "입다", "hint": "To wear"}, {"text": "오히려", "hint": "Rather,preferably"}, {"text": "프로그램", "hint": "Program"}, {"text": "네", "hint": "Yes"}, {"text": "이루어지다", "hint": "Get accomplished, achieved"}, {"text": "남", "hint": "Others, other people"}, {"text": "하루", "hint": "A day"}, {"text": "그림", "hint": "A picture"}, {"text": "적", "hint": "The time,the occasion,when"}, {"text": "터", "hint": "one's status, one's lot"}, {"text": "마시다", "hint": "To drink"}, {"text": "치다", "hint": "to attack, assault"}, {"text": "혼자", "hint": "Alone"}, {"text": "나가다", "hint": "To advance, proceed, go forward"}, {"text": "이제", "hint": "Now"}, {"text": "교수", "hint": "Teaching or  instruction"}, {"text": "술", "hint": "Alcohol"}, {"text": "사랑", "hint": "Love"}, {"text": "전화", "hint": "Telephone"}, {"text": "끝나다", "hint": "To draw to a close or  to end"}, {"text": "맞다", "hint": "Be right, correct; to match, be fitting for"}, {"text": "아빠", "hint": "Dad"}, {"text": "걸리다", "hint": "To be hung up or  suspended"}, {"text": "지키다", "hint": "Protect, maintain"}, {"text": "한번", "hint": "Once"}, {"text": "커피", "hint": "Coffee"}, {"text": "가슴", "hint": "Chest"}, {"text": "길다", "hint": "To be long"}, {"text": "바라보다", "hint": "Look at, watch ; to look forward to, hope for"}, {"text": "알아보다", "hint": "To investigate, examine, search"}, {"text": "맛", "hint": "Flavor"}, {"text": "대부분", "hint": "Most"}, {"text": "산업", "hint": "Industry"}, {"text": "매우", "hint": "Very"}, {"text": "오르다", "hint": "Go up, climb, ascend"}, {"text": "음식", "hint": "Food"}, {"text": "표정", "hint": "Facial expression, look"}, {"text": "꼭", "hint": "For sure"}, {"text": "일부", "hint": "A part, a portion"}, {"text": "요즘", "hint": "Recently, nowadays"}, {"text": "계획", "hint": "A plan or  a project"}, {"text": "느낌", "hint": "Touch, feel"}, {"text": "얼마", "hint": "How many, how much"}, {"text": "고개", "hint": "The nape of the neck"}, {"text": "성격", "hint": "Personality ; character, nature"}, {"text": "계속", "hint": "Continuously"}, {"text": "세기", "hint": "Century"}, {"text": "세우다", "hint": "Stand up, erect"}, {"text": "아내", "hint": "Wife"}, {"text": "가족", "hint": "Family"}, {"text": "현재", "hint": "The present time, now, at present"}, {"text": "세", "hint": "Three"}, {"text": "발전", "hint": "Development"}, {"text": "차", "hint": "A vehicle, train/auto car"}, {"text": "놀다", "hint": "Play, amuse oneself"}, {"text": "향하다", "hint": "To face, look out on"}, {"text": "관련", "hint": "Relation or  connection or  reference"}, {"text": "형태", "hint": "Form, shape"}, {"text": "각", "hint": "Each or  every"}, {"text": "도시", "hint": "City"}, {"text": "작업", "hint": "Work"}, {"text": "분위기", "hint": "atmosphere,surroundings"}, {"text": "그러하다", "hint": "To be so or  right"}, {"text": "나이", "hint": "Age"}, {"text": "우선", "hint": "First of all, before everything"}, {"text": "믿다", "hint": "Believe"}, {"text": "바꾸다", "hint": "change,exchange"}, {"text": "낳다", "hint": "To give birth"}, {"text": "바", "hint": "A thing, what"}, {"text": "정보", "hint": "information,intelligence"}, {"text": "열리다", "hint": "Open, be opened, be unlocked"}, {"text": "좋아하다", "hint": "To like, be fond of"}, {"text": "그리다", "hint": "Picture or  draw a picture"}, {"text": "만큼", "hint": "Of that amount"}, {"text": "배우다", "hint": "To learn"}, {"text": "시", "hint": "Poetry, lines of verse"}, {"text": "역할", "hint": "A part, a role"}, {"text": "옆", "hint": "Next to"}, {"text": "행동", "hint": "Action, behavior"}, {"text": "어", "hint": "Oh, well, why"}, {"text": "국내", "hint": "Inside the country"}, {"text": "비하다", "hint": "Compare to"}, {"text": "기관", "hint": "An engine or  a machine"}, {"text": "입장", "hint": "A position, situation"}, {"text": "만하다", "hint": "Be of the extent of"}, {"text": "예", "hint": "Example"}, {"text": "아래", "hint": "The bottom, the lower part"}, {"text": "방식", "hint": "A form, method, process"}, {"text": "영향", "hint": "Influence, consequences"}, {"text": "그럼", "hint": "Certainly or  of course."}, {"text": "나서다", "hint": "Come out, come forth"}, {"text": "흐르다", "hint": "Flow, stream"}, {"text": "저", "hint": "Uh, well,  …"}, {"text": "깊다", "hint": "Deep"}, {"text": "배", "hint": "A boat (boating)"}, {"text": "내", "hint": "Inside"}, {"text": "모양", "hint": "A shape, form"}, {"text": "산", "hint": "A mountain"}, {"text": "새", "hint": "New"}, {"text": "하지만", "hint": "But, nevertheless"}, {"text": "조건", "hint": "condition,stipulation"}, {"text": "문", "hint": "Door"}, {"text": "꽃", "hint": "Flower"}, {"text": "단계", "hint": "A step, phase"}, {"text": "올리다", "hint": "Raise, lift up"}, {"text": "그동안", "hint": "During that time"}, {"text": "교사", "hint": "Instructor"}, {"text": "갑자기", "hint": "Suddenly"}, {"text": "넘다", "hint": "Cross or go across"}, {"text": "지니다", "hint": "Carry with, hold, possess"}, {"text": "바람", "hint": "Wind"}, {"text": "잘하다", "hint": "To do well"}, {"text": "마을", "hint": "Town"}, {"text": "어리다", "hint": "To be very young, juvenile"}, {"text": "대표", "hint": "Representative"}, {"text": "가능성", "hint": "Possibility"}, {"text": "방향", "hint": "Direction"}, {"text": "대회", "hint": "A great meeting"}, {"text": "목소리", "hint": "Voice"}, {"text": "노래", "hint": "Song"}, {"text": "바다", "hint": "Sea"}, {"text": "힘들다", "hint": "To be hard, difficult"}, {"text": "공부", "hint": "Study"}, {"text": "움직이다", "hint": "To move, stir"}, {"text": "의원", "hint": "A member"}, {"text": "노력", "hint": "Effort"}, {"text": "전혀", "hint": "entirely,utterly,completely"}, {"text": "언니", "hint": "Older sister"}, {"text": "단체", "hint": "A corps, a group"}, {"text": "분", "hint": "One part"}, {"text": "알려지다", "hint": "To become known"}, {"text": "가능하다", "hint": "To be possible"}, {"text": "능력", "hint": "Ability, capability, how much and how well"}, {"text": "주장하다", "hint": "To assert,maintain"}, {"text": "자식", "hint": "one's children"}, {"text": "불", "hint": "Fire"}, {"text": "주민", "hint": "inhabitants,dwellers"}, {"text": "모으다", "hint": "gather,get together"}, {"text": "자료", "hint": "materials,data"}, {"text": "존재", "hint": "Existence"}, {"text": "학년", "hint": "A school year"}, {"text": "신문", "hint": "A newspaper"}, {"text": "가지다", "hint": "Entertain or  hold or  have"}, {"text": "이해하다", "hint": "To understand"}, {"text": "제품", "hint": "Manufactured goods"}, {"text": "분야", "hint": "Field"}, {"text": "선생", "hint": "Teacher"}, {"text": "사업", "hint": "Business"}, {"text": "행위", "hint": "An act, deed, behavior"}, {"text": "수준", "hint": "Level"}, {"text": "지난해", "hint": "Last year"}, {"text": "표현", "hint": "Verbal expression, representation, manifestation"}, {"text": "기분", "hint": "Mood"}, {"text": "대", "hint": "Era, period"}, {"text": "젊다", "hint": "To be young,youthful"}, {"text": "옷", "hint": "Clothes"}, {"text": "기능", "hint": "Function or  functionality"}, {"text": "순간", "hint": "A moment,a second"}, {"text": "전쟁", "hint": "War"}, {"text": "전", "hint": "Before"}, {"text": "꿈", "hint": "A Dream"}, {"text": "할머니", "hint": "Grandmother"}, {"text": "회의", "hint": "A meeting, a conference"}, {"text": "방송", "hint": "Broadcast"}, {"text": "이야기하다", "hint": "To talk"}, {"text": "나무", "hint": "Tree"}, {"text": "자다", "hint": "To sleep"}, {"text": "연극", "hint": "drama,a play"}, {"text": "마찬가지", "hint": "The same"}, {"text": "걷다", "hint": "To walk"}, {"text": "노동", "hint": "Labor, work"}, {"text": "이때", "hint": "At this time, moment"}, {"text": "과거", "hint": "The past"}, {"text": "가치", "hint": "Price"}, {"text": "시간", "hint": "a Length of time (한시간 동안)"}, {"text": "집단", "hint": "A group, a collective body"}, {"text": "현대", "hint": "The present age, times"}, {"text": "살펴보다", "hint": "Watch closely"}, {"text": "장관", "hint": "A government cabinet minister"}, {"text": "차이", "hint": "difference,disparity"}, {"text": "풀다", "hint": "Untie, loosen ; to melt into"}, {"text": "시절", "hint": "season,time,occasion"}, {"text": "물건", "hint": "A thing"}, {"text": "직접", "hint": "Directly"}, {"text": "개인", "hint": "Private or  individual"}, {"text": "근데", "hint": "But or  however"}, {"text": "발", "hint": "Foot"}, {"text": "작가", "hint": "writer,author"}, {"text": "효과", "hint": "Effect, effectiveness"}, {"text": "불교", "hint": "Buddhism"}, {"text": "끌다", "hint": "Pull"}, {"text": "대로", "hint": "Like, according to"}, {"text": "빨리", "hint": "Quickly"}, {"text": "시작되다", "hint": "To begin,start"}, {"text": "말다", "hint": "Cease"}, {"text": "설명하다", "hint": "To explain"}, {"text": "우주", "hint": "The universe"}, {"text": "시기", "hint": "An opportunity,chance"}, {"text": "마치", "hint": "As though, as if"}, {"text": "살", "hint": "Years old"}, {"text": "생산", "hint": "1) production 2)birth"}, {"text": "바라다", "hint": "Wish, hope"}, {"text": "강하다", "hint": "To be strong or  powerful"}, {"text": "경험", "hint": "Experience or  undergo or  suffer"}, {"text": "음악", "hint": "Music"}, {"text": "최고", "hint": "The best"}, {"text": "나타내다", "hint": "Show, display"}, {"text": "아프다", "hint": "To hurt"}, {"text": "적다", "hint": "To be small, few in number"}, {"text": "비", "hint": "Rain"}, {"text": "고향", "hint": "Hometown"}, {"text": "놀라다", "hint": "Be surprised"}, {"text": "다양하다", "hint": "To be various, diverse"}, {"text": "울다", "hint": "To cry, weep"}, {"text": "농민", "hint": "A farmer"}, {"text": "은행", "hint": "A bank"}, {"text": "지내다", "hint": "To pass, spend time"}, {"text": "결혼", "hint": "Marriage"}, {"text": "법", "hint": "A law, the law"}, {"text": "소설", "hint": "A novel, fiction story"}, {"text": "예", "hint": "Yes, certainly, right"}, {"text": "오후", "hint": "The afternoon"}, {"text": "질서", "hint": "Order, system"}, {"text": "담다", "hint": "Put in a bottle"}, {"text": "모이다", "hint": "Meet, assemble"}, {"text": "시민", "hint": "Residents of a city"}, {"text": "회장", "hint": "Chariman, the president"}, {"text": "빠르다", "hint": "Be fast, quick"}, {"text": "스스로", "hint": "On its own, of its own free will"}, {"text": "아기", "hint": "baby,infant"}, {"text": "아저씨", "hint": "Sir, calling an unknown male"}, {"text": "옛날", "hint": "Ancient times, antiquity"}, {"text": "이날", "hint": "Today, this day"}, {"text": "제대로", "hint": "As properly is suitable"}, {"text": "달", "hint": "The moon"}, {"text": "던지다", "hint": "To throw"}, {"text": "참", "hint": "really,truly"}, {"text": "공간", "hint": "Space or  room"}, {"text": "이곳", "hint": "This place, here"}, {"text": "마지막", "hint": "Last, final"}, {"text": "벌이다", "hint": "(1) to plan to start a job/project (2) to play a table game"}, {"text": "병원", "hint": "Hospital"}, {"text": "자세", "hint": "Position, posture"}, {"text": "강조하다", "hint": "Place empasis upon"}, {"text": "경찰", "hint": "The police"}, {"text": "맡다", "hint": "Take charge of"}, {"text": "저녁", "hint": "Evening"}, {"text": "한편", "hint": "One side, one way"}, {"text": "그러면", "hint": "If so or  if that is the case"}, {"text": "기자", "hint": "A journalist"}, {"text": "넓다", "hint": "Broad"}, {"text": "시험", "hint": "A test"}, {"text": "잠", "hint": "Sleep"}, {"text": "주로", "hint": "principally,mainly"}, {"text": "훨씬", "hint": "By far, very much so"}, {"text": "면", "hint": "Side"}, {"text": "통일", "hint": "Unification"}, {"text": "건강", "hint": "Health"}, {"text": "가깝다", "hint": "Close"}, {"text": "건물", "hint": "Building"}, {"text": "시설", "hint": "establishment,institution"}, {"text": "외국", "hint": "A foreign country"}, {"text": "밑", "hint": "The bottom"}, {"text": "어른", "hint": "A man, an adult"}, {"text": "주변", "hint": "A circumference"}, {"text": "대신", "hint": "Instead of"}, {"text": "원인", "hint": "A cause,a factor"}, {"text": "팔다", "hint": "To sell"}, {"text": "차례", "hint": "(1) order,precedence  (2) one time, one round"}, {"text": "군", "hint": "An army"}, {"text": "열심히", "hint": "Enthusiastically,with zeal"}, {"text": "일하다", "hint": "To work, labor"}, {"text": "재산", "hint": "property,fortune, assets, possessions"}, {"text": "팀", "hint": "Team"}, {"text": "부모", "hint": "Parents"}, {"text": "약간", "hint": "Somewhat"}, {"text": "언어", "hint": "language,speech"}, {"text": "요구하다", "hint": "To demand,claim,request"}, {"text": "올라가다", "hint": "To go up, ascend"}, {"text": "첫", "hint": "First"}, {"text": "감독", "hint": "The director"}, {"text": "그날", "hint": "That day or  that same day"}, {"text": "사실", "hint": "Actually, really"}, {"text": "자주", "hint": "Always, constantly"}, {"text": "당하다", "hint": "Have, encounter"}, {"text": "삼다", "hint": "Make a thing of"}, {"text": "약", "hint": "About, approximately"}, {"text": "기간", "hint": "A period or  a time or"}, {"text": "담배", "hint": "Tobacco"}, {"text": "일으키다", "hint": "Riase, get up; start, commence"}, {"text": "일단", "hint": "Temporarily"}, {"text": "할아버지", "hint": "Grandfather"}, {"text": "조직", "hint": "Organization (composition, structure)"}, {"text": "태어나다", "hint": "To be born, see the light of day"}, {"text": "공장", "hint": "Construction site"}, {"text": "벌써", "hint": "Already"}, {"text": "즐기다", "hint": "Enjoy oneself,take pleasure,delight"}, {"text": "지", "hint": "since,from"}, {"text": "환자", "hint": "A patient"}, {"text": "변하다", "hint": "Change"}, {"text": "사고", "hint": "An accident"}, {"text": "그래도", "hint": "All the same"}, {"text": "아무리", "hint": "However much"}, {"text": "맞추다", "hint": "Adjust, adapt"}, {"text": "쌀", "hint": "Uncooked rice"}, {"text": "일반", "hint": "universal,common,usual"}, {"text": "재미있다", "hint": "interesting,fun"}, {"text": "가르치다", "hint": "To teach"}, {"text": "대화", "hint": "Conversation"}, {"text": "막다", "hint": "Stop, obstruct"}, {"text": "올해", "hint": "This year"}, {"text": "형", "hint": "An elder brother"}, {"text": "달리", "hint": "Differently"}, {"text": "버리다", "hint": "Throw away"}, {"text": "붙이다", "hint": "affix,put on"}, {"text": "인물", "hint": "A man, a person"}, {"text": "늘", "hint": "Always"}, {"text": "모두", "hint": "everything"}, {"text": "전국", "hint": "The whole country"}, {"text": "마치다", "hint": "Finish, complete"}, {"text": "전", "hint": "all,every"}, {"text": "다만", "hint": "Only, merely"}, {"text": "도움", "hint": "Help"}, {"text": "가정", "hint": "Famly"}, {"text": "걸다", "hint": "Hang up or  suspend"}, {"text": "빠지다", "hint": "To fall into"}, {"text": "멀다", "hint": "To be far"}, {"text": "버스", "hint": "Bus"}, {"text": "오늘날", "hint": "These days, nowadays"}, {"text": "잠시", "hint": "For a little while"}, {"text": "농업", "hint": "Agriculture"}, {"text": "대다", "hint": "Put, place up to"}, {"text": "식", "hint": "form,style"}, {"text": "의견", "hint": "An opinion,a suggestion"}, {"text": "무대", "hint": "Stage"}, {"text": "사진", "hint": "Picture"}, {"text": "주장", "hint": "assertion,insistance"}, {"text": "표현하다", "hint": "To express, make known by saying"}, {"text": "인하다", "hint": "To be due to, caused by"}, {"text": "이상하다", "hint": "To be strange,queer"}, {"text": "제일", "hint": "The first"}, {"text": "붙다", "hint": "Stick, adhere to"}, {"text": "아마", "hint": "Probably"}, {"text": "얘기하다", "hint": "To tell a story"}, {"text": "잇다", "hint": "Join, connect"}, {"text": "조금", "hint": "A little"}, {"text": "경기", "hint": "Race or  match or  contest"}, {"text": "목적", "hint": "goal,purpose"}, {"text": "태도", "hint": "attitude,comportment"}, {"text": "남성", "hint": "Male"}, {"text": "주위", "hint": "The circumference,the girth"}, {"text": "대책", "hint": "Countermeasure"}, {"text": "그만", "hint": "That much or  a little amount"}, {"text": "발생하다", "hint": "Originate, come from"}, {"text": "다리", "hint": "Leg"}, {"text": "아무", "hint": "anybody,everybody"}, {"text": "어쩌다", "hint": "By chance, accident"}, {"text": "재료", "hint": "stuff,material"}, {"text": "각각", "hint": "Each and every"}, {"text": "결코", "hint": "Never or  by no means"}, {"text": "옮기다", "hint": "Move, transfer (2)(sickness) communicate, transfer to"}, {"text": "항상", "hint": "Always"}, {"text": "해", "hint": "A year"}, {"text": "잃다", "hint": "To lose, to miss, to be deprived"}, {"text": "자유", "hint": "Freedom"}, {"text": "책임", "hint": "Responsibility"}, {"text": "바뀌다", "hint": "Be changed"}, {"text": "비슷하다", "hint": "To resemble"}, {"text": "심하다", "hint": "To be extreme,intense"}, {"text": "경쟁", "hint": "Competition or  rivalry"}, {"text": "사랑하다", "hint": "To love"}, {"text": "아니", "hint": "No!"}, {"text": "여름", "hint": "summer,summertime"}, {"text": "자라다", "hint": "To grow up"}, {"text": "회", "hint": "A time, an inning, a round in a game"}, {"text": "구체적", "hint": "Concretely"}, {"text": "기회", "hint": "An opportunity"}, {"text": "실시하다", "hint": "To enforce,put into effect"}, {"text": "지구", "hint": "The earth"}, {"text": "번째", "hint": "How many times"}, {"text": "소비자", "hint": "A consumer"}, {"text": "싫다", "hint": "To not like, to hate"}, {"text": "규모", "hint": "Scale or  scope or  structure"}, {"text": "기준", "hint": "A standard or basis"}, {"text": "말", "hint": "End"}, {"text": "반드시", "hint": "Most certainly"}, {"text": "셈", "hint": "An intention,design,purpose"}, {"text": "갖추다", "hint": "Make or  get ready or  prepare"}, {"text": "그러니까", "hint": "And so it is that"}, {"text": "받아들이다", "hint": "Accept"}, {"text": "값", "hint": "Price"}, {"text": "현장", "hint": "on site, on location, at the site in question"}, {"text": "건설", "hint": "Construction"}, {"text": "꺼내다", "hint": "To get out or  draw out"}, {"text": "노동자", "hint": "Laborer, worker"}, {"text": "언제나", "hint": "everytime,always"}, {"text": "완전히", "hint": "completely,perfectly"}, {"text": "자동차", "hint": "Car"}, {"text": "전하다", "hint": "To transmit,convey"}, {"text": "존재하다", "hint": "To exist"}, {"text": "개월", "hint": "Each and every month"}, {"text": "맞다", "hint": "receive,welcome (note, usually this is 맞히다)"}, {"text": "별로", "hint": "Especially, particularly"}, {"text": "어린이", "hint": "A youngster, a child"}, {"text": "정하다", "hint": "To set,determine"}, {"text": "한마디", "hint": "One word"}, {"text": "유지하다", "hint": "To preserve, maintain"}, {"text": "이데올로기", "hint": "Ideology"}, {"text": "공부하다", "hint": "To study"}, {"text": "대중", "hint": "The masses"}, {"text": "늘어나다", "hint": "Grow longer"}, {"text": "닦다", "hint": "Wipe clean, polish"}, {"text": "만", "hint": "As many as, full, complete"}, {"text": "말씀", "hint": "Speech"}, {"text": "괜찮다", "hint": "To be okay"}, {"text": "눈물", "hint": "A tear"}, {"text": "각종", "hint": "All sorts or  varieties"}, {"text": "빛", "hint": "Light"}, {"text": "아니", "hint": "Not"}, {"text": "피하다", "hint": "avoid,keep away"}, {"text": "거치다", "hint": "Pass or  go through"}, {"text": "나아가다", "hint": "Advance, go forward"}, {"text": "야", "hint": "(Word to get somebody's attention) Hey!! (2) impolite speech for 이다, to be"}, {"text": "지식", "hint": "Knowledge, information"}, {"text": "여전히", "hint": "As it used to be, as before ; still, persistently, even still"}, {"text": "주인", "hint": "The head of a family,the owner"}, {"text": "발견하다", "hint": "To discover"}, {"text": "선", "hint": "A line, a route"}, {"text": "인류", "hint": "The human race"}, {"text": "특징", "hint": "A special feature, a distinguishing feature"}, {"text": "선수", "hint": "An athlete"}, {"text": "형식", "hint": "A form, formality, mold"}, {"text": "마련하다", "hint": "To plan, arrange"}, {"text": "반", "hint": "Half"}, {"text": "발표하다", "hint": "To announce"}, {"text": "주제", "hint": "Subject, theme, topic"}, {"text": "걸치다", "hint": "1) put a thing over or across 2) to range from A to B"}, {"text": "겪다", "hint": "Experience or  undergo or  suffer"}, {"text": "관점", "hint": "A point of view or a standpoint/outlook"}, {"text": "귀", "hint": "Ear"}, {"text": "기본", "hint": "A foundation"}, {"text": "미터", "hint": "Meter"}, {"text": "사라지다", "hint": "To disappear"}, {"text": "어떠하다", "hint": "To be how"}, {"text": "감정", "hint": "Feelings"}, {"text": "기억", "hint": "A memory"}, {"text": "놈", "hint": "A fellow"}, {"text": "인기", "hint": "Popularity"}, {"text": "배", "hint": "Abdomen"}, {"text": "아파트", "hint": "Apartment"}, {"text": "가끔", "hint": "Sometimes"}, {"text": "구성", "hint": "Organization or  constitution , the framework of something"}, {"text": "술", "hint": "Spoonful"}, {"text": "실제로", "hint": "In reality"}, {"text": "짧다", "hint": "Short, brief"}, {"text": "고맙다", "hint": "To thank"}, {"text": "관리", "hint": "Management or  administration"}, {"text": "그곳", "hint": "That place"}, {"text": "보다", "hint": "More than, greater than …."}, {"text": "비롯하다", "hint": "begin,start"}, {"text": "과연", "hint": "Just as one thought"}, {"text": "달리다", "hint": "run, make do fast"}, {"text": "바쁘다", "hint": "Busy"}, {"text": "이전", "hint": "Former days/times"}, {"text": "인정하다", "hint": "To acknowledge,authorize"}, {"text": "자", "hint": "A person"}, {"text": "중앙", "hint": "The middle and the heart"}, {"text": "나쁘다", "hint": "To be bad"}, {"text": "불구하다", "hint": "Deformity, malformation"}, {"text": "시키다", "hint": "To make"}, {"text": "게임", "hint": "Game"}, {"text": "국제", "hint": "International"}, {"text": "그룹", "hint": "Group"}, {"text": "인생", "hint": "Life"}, {"text": "전통", "hint": "tradition,convention"}, {"text": "기르다", "hint": "Educate or  train or  cultivate"}, {"text": "잔", "hint": "A cup, wine glass"}, {"text": "조사하다", "hint": "To examine,investigate"}, {"text": "커다랗다", "hint": "To be very big/large"}, {"text": "있다", "hint": "To be"}, {"text": "시인", "hint": "A poet"}, {"text": "언제", "hint": "when,at what time"}, {"text": "외", "hint": "Except, save for"}, {"text": "평가", "hint": "Evaluation, appraisal"}, {"text": "내려오다", "hint": "Come down"}, {"text": "위치", "hint": "A position, a location"}, {"text": "줄이다", "hint": "reduce,decrease"}, {"text": "가격", "hint": "Price"}, {"text": "달라지다", "hint": "To change, vary"}, {"text": "비다", "hint": "To be empty, vacant"}, {"text": "삼국", "hint": "Three countries"}, {"text": "손님", "hint": "Customer"}, {"text": "원하다", "hint": "To want"}, {"text": "통신", "hint": "communications,correspondance"}, {"text": "확인하다", "hint": "To confirm,corroborate"}, {"text": "모임", "hint": "A group, a party"}, {"text": "수", "hint": "The number of sth"}, {"text": "웃음", "hint": "Laughter, a smile"}, {"text": "기계", "hint": "An instrument or  a machine"}, {"text": "모양", "hint": "signs,indications"}, {"text": "물질", "hint": "matter,material"}, {"text": "아나운서", "hint": "Announcer"}, {"text": "뉴스", "hint": "News"}, {"text": "살아가다", "hint": "Lead a life, get along"}, {"text": "펴다", "hint": "Spread out, unfold"}, {"text": "배", "hint": "Times, x-fold"}, {"text": "수업", "hint": "school,teaching"}, {"text": "겨울", "hint": "Winter"}, {"text": "종교", "hint": "religion,a faith"}, {"text": "층", "hint": "floor,grade,class"}, {"text": "자연스럽다", "hint": "To be natural"}, {"text": "장", "hint": "One piece of sth flat"}, {"text": "식사", "hint": "A meal"}, {"text": "안다", "hint": "To hold, embrace"}, {"text": "이해", "hint": "Understanding"}, {"text": "잊다", "hint": "To forget"}, {"text": "제시하다", "hint": "To present"}, {"text": "반", "hint": "Group, company, party"}, {"text": "불과하다", "hint": "Nothing more than"}, {"text": "혹은", "hint": "If that's not the case"}, {"text": "엄청나다", "hint": "To be absurd,wild,terribly large"}, {"text": "편", "hint": "Direction, way (the wind is blowing that ~)"}, {"text": "텔레비전", "hint": "Television"}, {"text": "파악하다", "hint": "Grasp, seize, understand"}, {"text": "편", "hint": "Compilation, editing"}, {"text": "실천", "hint": "Practice"}, {"text": "노력하다", "hint": "To try hard, strive"}, {"text": "보호", "hint": "protection,shelter"}, {"text": "씻다", "hint": "To wash,cleanse"}, {"text": "늦다", "hint": "To be late (time)"}, {"text": "이웃", "hint": "The neighborhood"}, {"text": "편지", "hint": "Letter"}, {"text": "공동", "hint": "Association or  union or  collaboration"}, {"text": "까닭", "hint": "Reason"}, {"text": "방안", "hint": "A plan, scheme"}, {"text": "센티미터", "hint": "Centimeter"}, {"text": "팔", "hint": "An arm"}, {"text": "분명하다", "hint": "To be clear/obvious"}, {"text": "분석", "hint": "Analysis"}, {"text": "소녀", "hint": "A young girl"}, {"text": "지나가다", "hint": "To pass, elapse"}, {"text": "차", "hint": "order,sequence,degree"}, {"text": "상품", "hint": "Product"}, {"text": "설명", "hint": "Explanation"}, {"text": "훌륭하다", "hint": "To be excellent"}, {"text": "관계자", "hint": "The interested or affected parties"}, {"text": "새로", "hint": "newly,anew"}, {"text": "세", "hint": "Age in years"}, {"text": "이어지다", "hint": "Get joined, be connected"}, {"text": "티브이", "hint": "TV"}, {"text": "봄", "hint": "Spring"}, {"text": "종류", "hint": "kind,sort,species"}, {"text": "낮다", "hint": "Be low"}, {"text": "어깨", "hint": "Shoulder"}, {"text": "부부", "hint": "Man and wife"}, {"text": "오래", "hint": "Long, for a long time"}, {"text": "요구", "hint": "A demand, claim, request"}, {"text": "키우다", "hint": "To raise, bring up, rear"}, {"text": "눕다", "hint": "Lie down"}, {"text": "발전하다", "hint": "To develop, grow"}, {"text": "여행", "hint": "Trip"}, {"text": "죽음", "hint": "Death"}, {"text": "고통", "hint": "Suffering or  agony"}, {"text": "공", "hint": "Ball"}, {"text": "어울리다", "hint": "To be becoming, suiting"}, {"text": "오월", "hint": "May"}, {"text": "쉬다", "hint": "to relax, take a break"}, {"text": "알리다", "hint": "To inform, tell a person"}, {"text": "차다", "hint": "To be full, to be filled with (PASSIVE)"}, {"text": "과", "hint": "A lesson or  a section or  a department"}, {"text": "멀리", "hint": "Far away"}, {"text": "빼다", "hint": "Pull out, extract"}, {"text": "예정", "hint": "A program, schedule"}, {"text": "오빠", "hint": "Older brother"}, {"text": "즐겁다", "hint": "Be pleasant,agreeable"}, {"text": "한계", "hint": "Boundary, limits"}, {"text": "흔히", "hint": "Generally, commonly ; often"}, {"text": "바탕", "hint": "Natural disposition ; to go all out in a fight, 아주 크게 싸우다 ; the background"}, {"text": "사월", "hint": "April"}, {"text": "싸우다", "hint": "To fight"}, {"text": "예쁘다", "hint": "Pretty, lovely"}, {"text": "갈등", "hint": "Conflict or  troubles"}, {"text": "느껴지다", "hint": "Feel"}, {"text": "의지", "hint": "will,volition"}, {"text": "전문", "hint": "A specialty"}, {"text": "정확하다", "hint": "To be exact"}, {"text": "초기", "hint": "The early days, the initial period"}, {"text": "나중", "hint": "The last, the latter part"}, {"text": "맛있다", "hint": "Delicious"}, {"text": "며칠", "hint": "How many days"}, {"text": "쓴 맛", "hint": "see 6000"}, {"text": "찾아오다", "hint": "To go meet somebody, to go get sth"}, {"text": "미", "hint": "beauty,grace"}, {"text": "사용", "hint": "use,emply"}, {"text": "시선", "hint": "one's line of vision"}, {"text": "아무런", "hint": "No sort of"}, {"text": "언론", "hint": "A speech, discussion"}, {"text": "투자", "hint": "Investment"}, {"text": "지원", "hint": "helping, supporting, aiding"}, {"text": "결정하다", "hint": "To decide"}, {"text": "경영", "hint": "Management or  administration"}, {"text": "목표", "hint": "goal,object"}, {"text": "성장", "hint": "Growth"}, {"text": "숲", "hint": "Forest"}, {"text": "없어지다", "hint": "To lose, get lost"}, {"text": "작년", "hint": "Last year"}, {"text": "내려가다", "hint": "To go down"}, {"text": "미치다", "hint": "To reach"}, {"text": "새벽", "hint": "dawn,daybreak"}, {"text": "쓰레기", "hint": "Garbage"}, {"text": "얼른", "hint": "Fast, quickly, rapidly"}, {"text": "임금", "hint": "Wages, pay"}, {"text": "피해", "hint": "Damage"}, {"text": "한", "hint": "A limit"}, {"text": "무섭다", "hint": "fearful,dreadful"}, {"text": "직장", "hint": "one's work place"}, {"text": "참다", "hint": "Bear, endure"}, {"text": "크기", "hint": "Size, dimensions"}, {"text": "고기", "hint": "Meat"}, {"text": "남기다", "hint": "To leave behind"}, {"text": "서양", "hint": "The Western countries"}, {"text": "주요", "hint": "The major, the chief thing"}, {"text": "가져오다", "hint": "To bring or  get"}, {"text": "냄새", "hint": "Smell"}, {"text": "부드럽다", "hint": "soft,tender"}, {"text": "여기다", "hint": "Think, consider as"}, {"text": "이", "hint": "this,this thing"}, {"text": "공연", "hint": "A public performance"}, {"text": "남녀", "hint": "Man and woman"}, {"text": "내놓다", "hint": "Put out, take out"}, {"text": "만들어지다", "hint": "Make, create"}, {"text": "속도", "hint": "Speed"}, {"text": "심각하다", "hint": "seriousness,gravity"}, {"text": "준비", "hint": "Preparation"}, {"text": "계속되다", "hint": "To continue"}, {"text": "구월", "hint": "September"}, {"text": "맑다", "hint": "clean,pure"}, {"text": "소년", "hint": "A boy"}, {"text": "소식", "hint": "News, information"}, {"text": "유월", "hint": "June"}, {"text": "작용", "hint": "Application"}, {"text": "허리", "hint": "The waist, the small of the back"}, {"text": "골", "hint": "Goal"}, {"text": "공업", "hint": "The industry or  manufacturing industry"}, {"text": "그중", "hint": "Among the rest of them"}, {"text": "노인", "hint": "Old person"}, {"text": "벌다", "hint": "To earn (money) ; (2) to invite, to bring onto oneself"}, {"text": "살리다", "hint": "1) revive, bring around, restore to life  2) save,spare,rescue"}, {"text": "새", "hint": "A bird"}, {"text": "영어", "hint": "The english language"}, {"text": "출신", "hint": "A native, place one is from"}, {"text": "결정", "hint": "A decision or  determination"}, {"text": "경향", "hint": "Tendency or  trend"}, {"text": "기록", "hint": "A record or  a document"}, {"text": "나름", "hint": "Depending on"}, {"text": "대답하다", "hint": "To answer, reply"}, {"text": "반면", "hint": "One side"}, {"text": "썰다", "hint": "Chip, mince,dice"}, {"text": "움직임", "hint": "movement,motion,activity"}, {"text": "이미지", "hint": "Image"}, {"text": "터지다", "hint": "Break, be torn, get away from"}, {"text": "특성", "hint": "A special/unique characteristic (individuality making, peculiarity)"}, {"text": "교장", "hint": "Principal"}, {"text": "벗다", "hint": "Take off, remove"}, {"text": "업무", "hint": "Buisness, duty"}, {"text": "입시", "hint": "An entrance examination"}, {"text": "준비하다", "hint": "To prepare"}, {"text": "청소년", "hint": "Young boys and girls, teenagers"}, {"text": "응", "hint": "Yes, i see!"}, {"text": "이기다", "hint": "To win"}, {"text": "찾아보다", "hint": "To go meet somebody"}, {"text": "취하다", "hint": "To adopt, assume, take"}, {"text": "다루다", "hint": "Treat, deal with"}, {"text": "달", "hint": "The moon"}, {"text": "사장", "hint": "Company boss"}, {"text": "삼월", "hint": "March"}, {"text": "그렇지만", "hint": "But or  however"}, {"text": "선배", "hint": "one's senior"}, {"text": "업체", "hint": "A business enterprise"}, {"text": "키", "hint": "stature,height"}, {"text": "구하다", "hint": "1) To buy or  purchase or  2) look for or  seek or  want"}, {"text": "국회", "hint": "The National Assembly"}, {"text": "그러므로", "hint": "So or  hence or  therefore"}, {"text": "포함하다", "hint": "To include,contain"}]</script>
+
+  <script>
+    const koTop1000Raw = (document.getElementById('ko-top1000-data')?.textContent || '').replace(/\r/g,'');
+
+    function parseKoTopList(raw){
+      const trimmed = raw.trim();
+      if(!trimmed) return [];
+      if(trimmed.startsWith('[')){
+        try{
+          const parsed = JSON.parse(trimmed);
+          return parsed.map(item=>({text:item.text, hint:item.hint || ''}));
+        }catch(e){ /* fallback to manual parsing */ }
+      }
+      const lines = raw.replace(/\\’/g,"'").replace(/’/g,"'").split('\n');
+      const entries = [];
+      let word=null;
+      for(const lineRaw of lines){
+        const line=lineRaw.trim();
+        if(!line) continue;
+        if(/^\d+$/u.test(line)) continue;
+        if(!word){
+          word=line;
+        }else{
+          entries.push({text:word, hint:line});
+          word=null;
+        }
+      }
+      if(word){ entries.push({text:word, hint:''}); }
+      return entries;
+    }
+
+    const koTop1000 = parseKoTopList(koTop1000Raw);
+
+    const koSimpleSentences = [
+      {text:'저는 학생이에요', hint:'Я студент.'},
+      {text:'오늘 날씨가 좋아요', hint:'Сегодня хорошая погода.'},
+      {text:'물을 많이 마셔요', hint:'Пью много воды.'},
+      {text:'지금 집에 가요', hint:'Сейчас иду домой.'},
+      {text:'한국어를 공부해요', hint:'Учусь корейскому языку.'},
+      {text:'친구를 만나러 가요', hint:'Иду встретиться с другом.'},
+      {text:'점심을 같이 먹어요', hint:'Обедаем вместе.'},
+      {text:'음악을 듣는 것을 좋아해요', hint:'Мне нравится слушать музыку.'},
+      {text:'매일 운동을 해요', hint:'Каждый день делаю зарядку.'},
+      {text:'저녁에 책을 읽어요', hint:'Вечером читаю книгу.'},
+      {text:'주말에 영화를 봐요', hint:'В выходные смотрю кино.'},
+      {text:'쉬는 날에 여행하고 싶어요', hint:'В выходной хочу путешествовать.'}
+    ];
+
+    const englishWords = [
+      'time','type','left','right','space','enter','mouse','keyboard','screen','window',
+      'class','public','static','final','object','string','number','random','future','signal',
+      'river','ocean','planet','silent','listen','coffee','cookie','kitten','dragon','forest'
+    ];
+
+    const leftHandCodes = new Set([
+      'Backquote','Digit1','Digit2','Digit3','Digit4','Digit5',
+      'KeyQ','KeyW','KeyE','KeyR','KeyT','KeyA','KeyS','KeyD','KeyF','KeyG',
+      'KeyZ','KeyX','KeyC','KeyV'
+    ]);
+    const rightHandCodes = new Set([
+      'Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal',
+      'KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight','Backslash',
+      'KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote',
+      'KeyB','KeyN','KeyM','Comma','Period','Slash'
+    ]);
+
+    const layouts = {
+      en: {
+        name: 'латинская QWERTY',
+        rows: [
+          [
+            {code:'Backquote', label:'`'},
+            {code:'Digit1', label:'1'},
+            {code:'Digit2', label:'2'},
+            {code:'Digit3', label:'3'},
+            {code:'Digit4', label:'4'},
+            {code:'Digit5', label:'5'},
+            {code:'Digit6', label:'6'},
+            {code:'Digit7', label:'7'},
+            {code:'Digit8', label:'8'},
+            {code:'Digit9', label:'9'},
+            {code:'Digit0', label:'0'},
+            {code:'Minus', label:'-'},
+            {code:'Equal', label:'='},
+            {code:'Backspace', label:'Backspace', w:'small'}
+          ],[
+            {code:'Tab', label:'Tab', w:'small'},
+            {code:'KeyQ', label:'Q'},
+            {code:'KeyW', label:'W'},
+            {code:'KeyE', label:'E'},
+            {code:'KeyR', label:'R'},
+            {code:'KeyT', label:'T'},
+            {code:'KeyY', label:'Y'},
+            {code:'KeyU', label:'U'},
+            {code:'KeyI', label:'I'},
+            {code:'KeyO', label:'O'},
+            {code:'KeyP', label:'P'},
+            {code:'BracketLeft', label:'['},
+            {code:'BracketRight', label:']'},
+            {code:'Backslash', label:'\\'}
+          ],[
+            {code:'CapsLock', label:'Caps', w:'medium'},
+            {code:'KeyA', label:'A'},
+            {code:'KeyS', label:'S'},
+            {code:'KeyD', label:'D'},
+            {code:'KeyF', label:'F'},
+            {code:'KeyG', label:'G'},
+            {code:'KeyH', label:'H'},
+            {code:'KeyJ', label:'J'},
+            {code:'KeyK', label:'K'},
+            {code:'KeyL', label:'L'},
+            {code:'Semicolon', label:';'},
+            {code:'Quote', label:"'"},
+            {code:'Enter', label:'Enter', w:'medium'}
+          ],[
+            {code:'ShiftLeft', label:'Shift', w:'large'},
+            {code:'KeyZ', label:'Z'},
+            {code:'KeyX', label:'X'},
+            {code:'KeyC', label:'C'},
+            {code:'KeyV', label:'V'},
+            {code:'KeyB', label:'B'},
+            {code:'KeyN', label:'N'},
+            {code:'KeyM', label:'M'},
+            {code:'Comma', label:','},
+            {code:'Period', label:'.'},
+            {code:'Slash', label:'/'},
+            {code:'ShiftRight', label:'Shift', w:'large'}
+          ],[
+            {code:'Space', label:'Space', w:'large'}
+          ]
+        ]
+      },
+      ko: {
+        name: 'корейская 2-пальцевая',
+        rows: [
+          [
+            {code:'Backquote', label:'`'},
+            {code:'Digit1', label:'1'},
+            {code:'Digit2', label:'2'},
+            {code:'Digit3', label:'3'},
+            {code:'Digit4', label:'4'},
+            {code:'Digit5', label:'5'},
+            {code:'Digit6', label:'6'},
+            {code:'Digit7', label:'7'},
+            {code:'Digit8', label:'8'},
+            {code:'Digit9', label:'9'},
+            {code:'Digit0', label:'0'},
+            {code:'Minus', label:'-'},
+            {code:'Equal', label:'='},
+            {code:'Backspace', label:'Backspace', w:'small'}
+          ],[
+            {code:'Tab', label:'Tab', w:'small'},
+            {code:'KeyQ', label:'ㅂ'},
+            {code:'KeyW', label:'ㅈ'},
+            {code:'KeyE', label:'ㄷ'},
+            {code:'KeyR', label:'ㄱ'},
+            {code:'KeyT', label:'ㅅ'},
+            {code:'KeyY', label:'ㅛ'},
+            {code:'KeyU', label:'ㅕ'},
+            {code:'KeyI', label:'ㅑ'},
+            {code:'KeyO', label:'ㅐ'},
+            {code:'KeyP', label:'ㅔ'},
+            {code:'BracketLeft', label:'['},
+            {code:'BracketRight', label:']'},
+            {code:'Backslash', label:'\\'}
+          ],[
+            {code:'CapsLock', label:'Caps', w:'medium'},
+            {code:'KeyA', label:'ㅁ'},
+            {code:'KeyS', label:'ㄴ'},
+            {code:'KeyD', label:'ㅇ'},
+            {code:'KeyF', label:'ㄹ'},
+            {code:'KeyG', label:'ㅎ'},
+            {code:'KeyH', label:'ㅗ'},
+            {code:'KeyJ', label:'ㅓ'},
+            {code:'KeyK', label:'ㅏ'},
+            {code:'KeyL', label:'ㅣ'},
+            {code:'Semicolon', label:'；'},
+            {code:'Quote', label:"'"},
+            {code:'Enter', label:'Enter', w:'medium'}
+          ],[
+            {code:'ShiftLeft', label:'Shift', w:'large'},
+            {code:'KeyZ', label:'ㅋ'},
+            {code:'KeyX', label:'ㅌ'},
+            {code:'KeyC', label:'ㅊ'},
+            {code:'KeyV', label:'ㅍ'},
+            {code:'KeyB', label:'ㅠ'},
+            {code:'KeyN', label:'ㅜ'},
+            {code:'KeyM', label:'ㅡ'},
+            {code:'Comma', label:','},
+            {code:'Period', label:'.'},
+            {code:'Slash', label:'/'},
+            {code:'ShiftRight', label:'Shift', w:'large'}
+          ],[
+            {code:'Space', label:'Space', w:'large'}
+          ]
+        ]
+      }
+    };
+
+    const languages = {
+      en: {
+        name: 'Английский',
+        layout: 'en',
+        levels: [
+          {
+            id: 'en-basic',
+            name: 'Английский · базовые слова',
+            getItems: () => englishWords.map(text => ({text, hint:''})),
+            shuffle: true
+          }
+        ],
+        toSequence: word => buildSequenceFromLatin(word)
+      },
+      ko: {
+        name: 'Корейский',
+        layout: 'ko',
+        levels: [
+          {
+            id: 'ko-top1000',
+            name: 'Уровень 1 · Топ 1000 слов',
+            getItems: () => koTop1000,
+            shuffle: true
+          },
+          {
+            id: 'ko-sentences',
+            name: 'Уровень 2 · Простые предложения',
+            getItems: () => koSimpleSentences,
+            shuffle: false
+          }
+        ],
+        toSequence: word => buildSequenceFromHangul(word)
+      }
+    };
+
+    const state = {
+      language: 'ko',
+      levelId: 'ko-top1000',
+      words: [],
+      wIndex: 0,
+      cIndex: 0,
+      typedTotal: 0,
+      errors: 0,
+      audioOn: true,
+      history: [],
+      layout: 'ko'
+    };
+
+    const wordListEl = document.getElementById('wordList');
+    const typedEl = document.getElementById('typed');
+    const pendingEl = document.getElementById('pending');
+    const metaEl = document.getElementById('meta');
+    const displayWordEl = document.getElementById('displayWord');
+    const seqNoteEl = document.getElementById('seqNote');
+    const langSelect = document.getElementById('langSelect');
+    const levelSelect = document.getElementById('levelSelect');
+
+    function shuffle(arr){
+      const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]} return a;
+    }
+
+    function getLanguage(langKey){
+      return languages[langKey];
+    }
+
+    function getLevel(langKey, levelId){
+      const lang = getLanguage(langKey);
+      if(!lang) return null;
+      return lang.levels.find(level => level.id === levelId) || lang.levels[0];
+    }
+
+    function resolveLevelItems(level){
+      if(!level) return [];
+      const items = typeof level.getItems === 'function' ? level.getItems() : (Array.isArray(level.items) ? level.items : []);
+      return items.map(item => ({text:item.text, hint:item.hint || ''}));
+    }
+
+    function buildEntries(langKey, levelId){
+      const lang = getLanguage(langKey);
+      if(!lang) return [];
+      const level = getLevel(langKey, levelId);
+      const items = resolveLevelItems(level);
+      const useShuffle = level?.shuffle !== false;
+      const pool = useShuffle ? shuffle(items) : items;
+      return pool.map(item=>({
+        text: item.text,
+        hint: item.hint,
+        display: item.hint ? `${item.text} (${item.hint})` : item.text,
+        sequence: lang.toSequence(item.text)
+      }));
+    }
+
+    function currentEntry(){ return state.words[state.wIndex] || {text:'', hint:'', display:'', sequence:[]}; }
+    function currentSequence(){ return currentEntry().sequence; }
+
+    function renderWordList(){
+      wordListEl.innerHTML = '';
+      state.words.forEach((entry,i)=>{
+        const div=document.createElement('div');
+        div.className='word'+(i<state.wIndex?' done':'')+(i===state.wIndex?' current':'');
+        const main=document.createElement('div');
+        main.className='word-main';
+        main.textContent=entry.text;
+        div.appendChild(main);
+        if(entry.hint){
+          const hint=document.createElement('div');
+          hint.className='word-hint';
+          hint.textContent=`(${entry.hint})`;
+          div.appendChild(hint);
+        }
+        wordListEl.appendChild(div);
+      });
+      wordListEl.querySelector('.current')?.scrollIntoView({block:'nearest'});
+    }
+
+    function renderCenter(){
+      const entry=currentEntry();
+      displayWordEl.innerHTML = '';
+      if(entry.text){
+        const main=document.createElement('span');
+        main.className='word-main';
+        main.textContent=entry.text;
+        displayWordEl.appendChild(main);
+        if(entry.hint){
+          const hint=document.createElement('span');
+          hint.className='word-hint';
+          hint.textContent=`(${entry.hint})`;
+          displayWordEl.appendChild(hint);
+        }
+      }else{
+        displayWordEl.textContent='…';
+      }
+      const seq = currentSequence();
+      const pendingSeq = seq.slice(state.cIndex).map(step=>step.label).join('');
+      typedEl.textContent = state.history.join('');
+      pendingEl.textContent = pendingSeq;
+      const doneCount = state.typedTotal;
+      const acc = doneCount ? Math.max(0, Math.round(100*(doneCount - state.errors)/doneCount)) : 100;
+      metaEl.textContent = `Слово ${Math.min(state.wIndex+1,state.words.length)} · Точность — ${acc}% · Ошибок: ${state.errors}`;
+      const level = getLevel(state.language, state.levelId);
+      const levelName = level ? level.name : '';
+      seqNoteEl.textContent = `Печатаем раскладкой: ${layouts[state.layout].name}${levelName ? ' · '+levelName : ''}`;
+      highlightNextStep(nextStep());
+    }
+
+    function nextStep(){
+      const seq = currentSequence();
+      return seq[state.cIndex] || null;
+    }
+
+    const kbEl = document.getElementById('kb');
+    const domKeys = new Map();
+    let lastNextEl=null, lastBadge=null, lastModEls=[];
+
+    function buildKeyboard(layoutKey){
+      const layout = layouts[layoutKey];
+      kbEl.innerHTML=''; domKeys.clear();
+      layout.rows.forEach(row=>{
+        const r=document.createElement('div'); r.className='row';
+        row.forEach(key=>{
+          const el=document.createElement('div'); el.className='key '+(key.w||'');
+          const cap=document.createElement('div'); cap.className='cap'; cap.textContent=key.label;
+          el.appendChild(cap);
+          el.dataset.code = key.code;
+          domKeys.set(`code:${key.code}`, el);
+          if(leftHandCodes.has(key.code)) el.classList.add('left');
+          if(rightHandCodes.has(key.code)) el.classList.add('right');
+          r.appendChild(el);
+        });
+        kbEl.appendChild(r);
+      });
+    }
+
+    function highlightNextStep(step){
+      if(lastNextEl){ lastNextEl.classList.remove('next'); lastBadge?.remove(); lastBadge=null; lastNextEl=null; }
+      if(lastModEls.length){ lastModEls.forEach(el=>el.classList.remove('mod-hint')); lastModEls=[]; }
+      if(!step) return;
+      const el = domKeys.get(`code:${step.code}`);
+      if(!el) return;
+      el.classList.add('next');
+      const badge = document.createElement('div'); badge.className='badge';
+      const hand = leftHandCodes.has(step.code) ? 'левая' : (rightHandCodes.has(step.code) ? 'правая' : '');
+      badge.textContent = hand ? `${hand} рука${step.shift?' · Shift':''}` : (step.shift?'Shift':'');
+      if(hand==='левая') badge.style.borderColor = 'rgba(96,165,250,.7)';
+      if(hand==='правая') badge.style.borderColor = 'rgba(244,114,182,.7)';
+      if(step.shift){
+        const shiftLeft = domKeys.get('code:ShiftLeft');
+        const shiftRight = domKeys.get('code:ShiftRight');
+        shiftLeft?.classList.add('mod-hint');
+        shiftRight?.classList.add('mod-hint');
+        lastModEls = [shiftLeft, shiftRight].filter(Boolean);
+      }
+      el.appendChild(badge);
+      lastNextEl=el; lastBadge=badge;
+    }
+
+    let audioCtx = null;
+    function ensureAudio(){
+      if(!state.audioOn) return null;
+      if(!audioCtx){
+        try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+        catch(e){ audioCtx = null; }
+      }
+      return audioCtx;
+    }
+
+    function blip(fStart=660, fEnd=660, dur=0.06, type='sine', gain=0.08){
+      const ctx = ensureAudio(); if(!ctx) return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type=type;
+      o.frequency.setValueAtTime(fStart, ctx.currentTime);
+      if(fEnd!==fStart){ o.frequency.exponentialRampToValueAtTime(Math.max(40,fEnd), ctx.currentTime+dur*0.9); }
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(gain, ctx.currentTime+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+      o.connect(g).connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime+dur+0.005);
+    }
+
+    function playError(){ blip(240,140,0.16,'square',0.12); }
+    function playCorrect(){ blip(760,760,0.04,'triangle',0.06); }
+
+    function flashError(step){
+      const lane = document.querySelector('.lane');
+      const box = document.getElementById('nowWord');
+      box.classList.remove('error-flash');
+      void box.offsetWidth;
+      box.classList.add('error-flash');
+      lane.classList.remove('shake');
+      void lane.offsetWidth;
+      lane.classList.add('shake');
+      lane.addEventListener('animationend', ()=> lane.classList.remove('shake'), {once:true});
+      if(step){
+        const el = domKeys.get(`code:${step.code}`);
+        el?.animate([
+          {transform:'translateY(0)', boxShadow:'inset 0 0 0 2px rgba(239,68,68,.4)'},
+          {transform:'translateY(2px)'}
+        ], {duration:120, easing:'ease-out'});
+      }
+      playError();
+    }
+
+    function resetHistory(){
+      state.history = [];
+    }
+
+    function advanceWord(){
+      state.wIndex++; state.cIndex=0; resetHistory();
+      if(state.wIndex>=state.words.length){
+        state.words = buildEntries(state.language, state.levelId);
+        state.wIndex = 0; state.errors=0; state.typedTotal=0;
+      }
+      renderWordList();
+      renderCenter();
+    }
+
+    function handleStepInput(step){
+      state.history.push(step.label);
+      state.cIndex++;
+      playCorrect();
+      renderCenter();
+    }
+
+    const printableExtra = new Set(['Minus','Equal','BracketLeft','BracketRight','Backslash','Semicolon','Quote','Comma','Period','Slash']);
+
+    function handleKey(e){
+      const entry = currentEntry();
+      if(!entry) return;
+      const seq = currentSequence();
+
+      if(e.key === 'Backspace'){
+        if(state.cIndex>0){
+          state.cIndex--;
+          state.history.pop();
+          state.typedTotal++;
+          renderCenter();
+        }
+        e.preventDefault();
+        return;
+      }
+
+      if(e.key === 'Enter'){
+        if(state.cIndex >= seq.length){
+          advanceWord();
+        }
+        e.preventDefault();
+        return;
+      }
+
+      const step = nextStep();
+      if(!step) return;
+      if(e.code === 'Space' && step.code !== 'Space'){
+        if(state.cIndex >= seq.length){
+          advanceWord();
+        }
+        e.preventDefault();
+        return;
+      }
+      const isPrintable = !!e.code && (e.code.startsWith('Key') || e.code.startsWith('Digit') || printableExtra.has(e.code) || e.code==='Space');
+      if(!isPrintable) return;
+
+      state.typedTotal++;
+      const codeMatch = e.code === step.code;
+      const shiftMatch = step.shift ? e.shiftKey : true;
+      if(codeMatch && shiftMatch){
+        handleStepInput(step);
+      } else {
+        state.errors++;
+        flashError(step);
+        renderCenter();
+      }
+      e.preventDefault();
+    }
+
+    function populateLevelOptions(langKey, preferredLevelId){
+      const lang = getLanguage(langKey);
+      levelSelect.innerHTML='';
+      if(!lang) return null;
+      let chosen = null;
+      lang.levels.forEach(level=>{
+        const option=document.createElement('option');
+        option.value=level.id;
+        option.textContent=level.name;
+        levelSelect.appendChild(option);
+        if(level.id === preferredLevelId){
+          chosen = level;
+        }
+      });
+      if(!chosen){ chosen = lang.levels[0] || null; }
+      if(chosen){ levelSelect.value = chosen.id; }
+      return chosen;
+    }
+
+    function rebuildLanguage(langKey, preferredLevelId){
+      state.language = langKey;
+      const lang = getLanguage(langKey);
+      state.layout = lang?.layout || 'en';
+      const level = populateLevelOptions(langKey, preferredLevelId || state.levelId);
+      state.levelId = level ? level.id : '';
+      state.words = buildEntries(langKey, state.levelId);
+      state.wIndex = 0; state.cIndex=0; state.errors=0; state.typedTotal=0;
+      resetHistory();
+      buildKeyboard(state.layout);
+      renderWordList();
+      renderCenter();
+    }
+
+    document.getElementById('btn-shuffle').addEventListener('click',()=>{
+      state.words = buildEntries(state.language, state.levelId);
+      state.wIndex=0; state.cIndex=0; state.errors=0; state.typedTotal=0; resetHistory();
+      renderWordList(); renderCenter();
+      blip(520,520,0.05,'sine',0.05);
+    });
+
+    const btnAudio = document.getElementById('btn-audio');
+    btnAudio.addEventListener('click',()=>{
+      state.audioOn = !state.audioOn;
+      btnAudio.textContent = state.audioOn ? '🔊 Звук: вкл' : '🔇 Звук: выкл';
+      if(state.audioOn) blip(700,900,0.07,'triangle',0.06); else blip(200,160,0.08,'square',0.06);
+    });
+
+    langSelect.addEventListener('change', ()=>{
+      rebuildLanguage(langSelect.value);
+    });
+
+    levelSelect.addEventListener('change', ()=>{
+      state.levelId = levelSelect.value;
+      state.words = buildEntries(state.language, state.levelId);
+      state.wIndex=0; state.cIndex=0; state.errors=0; state.typedTotal=0; resetHistory();
+      renderWordList(); renderCenter();
+      blip(520,520,0.05,'sine',0.05);
+    });
+
+    window.addEventListener('keydown', handleKey, {passive:false});
+
+    kbEl.addEventListener('click',(e)=>{
+      const keyEl = e.target.closest('.key');
+      if(!keyEl) return;
+      const codeName = keyEl.dataset.code;
+      if(!codeName || codeName.startsWith('Shift')) return;
+      const step = nextStep();
+      const eventInit = {
+        code: codeName,
+        key: keyEl.textContent.trim(),
+        shiftKey: !!(step && step.shift),
+        preventDefault(){}
+      };
+      handleKey(eventInit);
+    });
+
+    function init(){
+      rebuildLanguage(state.language, state.levelId);
+      langSelect.value = state.language;
+      if(state.levelId){ levelSelect.value = state.levelId; }
+    }
+
+    const latinMap = new Map([
+      ...'abcdefghijklmnopqrstuvwxyz'.split('').map(ch=>[ch,{code:`Key${ch.toUpperCase()}`,label:ch}]),
+      ...'0123456789'.split('').map(d=>[d,{code:`Digit${d}`,label:d}]),
+      ['`',{code:'Backquote',label:'`'}],
+      ['-',{code:'Minus',label:'-'}],
+      ['=',{code:'Equal',label:'='}],
+      ['[',{code:'BracketLeft',label:'['}],
+      [']',{code:'BracketRight',label:']'}],
+      ['\\',{code:'Backslash',label:'\\'}],
+      [';',{code:'Semicolon',label:';'}],
+      ['\'',{code:'Quote',label:"'"}],
+      [',',{code:'Comma',label:','}],
+      ['.',{code:'Period',label:'.'}],
+      ['/',{code:'Slash',label:'/'}],
+      [' ',{code:'Space',label:'␣'}]
+    ]);
+
+    function buildSequenceFromLatin(word){
+      const seq = [];
+      for(const ch of word){
+        const lower = ch.toLowerCase();
+        const meta = latinMap.get(lower);
+        if(!meta) continue;
+        seq.push({code:meta.code, label:lower});
+      }
+      return seq;
+    }
+
+    const choseong = [
+      {label:'ㄱ', code:'KeyR'}, {label:'ㄲ', code:'KeyR', shift:true}, {label:'ㄴ', code:'KeyS'}, {label:'ㄷ', code:'KeyE'},
+      {label:'ㄸ', code:'KeyE', shift:true}, {label:'ㄹ', code:'KeyF'}, {label:'ㅁ', code:'KeyA'}, {label:'ㅂ', code:'KeyQ'},
+      {label:'ㅃ', code:'KeyQ', shift:true}, {label:'ㅅ', code:'KeyT'}, {label:'ㅆ', code:'KeyT', shift:true}, {label:'ㅇ', code:'KeyD'},
+      {label:'ㅈ', code:'KeyW'}, {label:'ㅉ', code:'KeyW', shift:true}, {label:'ㅊ', code:'KeyC'}, {label:'ㅋ', code:'KeyZ'},
+      {label:'ㅌ', code:'KeyX'}, {label:'ㅍ', code:'KeyV'}, {label:'ㅎ', code:'KeyG'}
+    ];
+
+    const jungseong = [
+      [{label:'ㅏ', code:'KeyK'}],
+      [{label:'ㅐ', code:'KeyO'}],
+      [{label:'ㅑ', code:'KeyI'}],
+      [{label:'ㅒ', code:'KeyO', shift:true}],
+      [{label:'ㅓ', code:'KeyJ'}],
+      [{label:'ㅔ', code:'KeyP'}],
+      [{label:'ㅕ', code:'KeyU'}],
+      [{label:'ㅖ', code:'KeyP', shift:true}],
+      [{label:'ㅗ', code:'KeyH'}],
+      [{label:'ㅗ', code:'KeyH'}, {label:'ㅏ', code:'KeyK'}],
+      [{label:'ㅗ', code:'KeyH'}, {label:'ㅐ', code:'KeyO'}],
+      [{label:'ㅗ', code:'KeyH'}, {label:'ㅣ', code:'KeyL'}],
+      [{label:'ㅛ', code:'KeyY'}],
+      [{label:'ㅜ', code:'KeyN'}],
+      [{label:'ㅜ', code:'KeyN'}, {label:'ㅓ', code:'KeyJ'}],
+      [{label:'ㅜ', code:'KeyN'}, {label:'ㅔ', code:'KeyP'}],
+      [{label:'ㅜ', code:'KeyN'}, {label:'ㅣ', code:'KeyL'}],
+      [{label:'ㅠ', code:'KeyB'}],
+      [{label:'ㅡ', code:'KeyM'}],
+      [{label:'ㅡ', code:'KeyM'}, {label:'ㅣ', code:'KeyL'}],
+      [{label:'ㅣ', code:'KeyL'}]
+    ];
+
+    const jongseong = [
+      [],
+      [{label:'ㄱ', code:'KeyR'}],
+      [{label:'ㄲ', code:'KeyR', shift:true}],
+      [{label:'ㄱ', code:'KeyR'}, {label:'ㅅ', code:'KeyT'}],
+      [{label:'ㄴ', code:'KeyS'}],
+      [{label:'ㄴ', code:'KeyS'}, {label:'ㅈ', code:'KeyW'}],
+      [{label:'ㄴ', code:'KeyS'}, {label:'ㅎ', code:'KeyG'}],
+      [{label:'ㄷ', code:'KeyE'}],
+      [{label:'ㄹ', code:'KeyF'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㄱ', code:'KeyR'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅁ', code:'KeyA'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅂ', code:'KeyQ'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅅ', code:'KeyT'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅌ', code:'KeyX'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅍ', code:'KeyV'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅎ', code:'KeyG'}],
+      [{label:'ㅁ', code:'KeyA'}],
+      [{label:'ㅂ', code:'KeyQ'}],
+      [{label:'ㅂ', code:'KeyQ'}, {label:'ㅅ', code:'KeyT'}],
+      [{label:'ㅅ', code:'KeyT'}],
+      [{label:'ㅆ', code:'KeyT', shift:true}],
+      [{label:'ㅇ', code:'KeyD'}],
+      [{label:'ㅈ', code:'KeyW'}],
+      [{label:'ㅊ', code:'KeyC'}],
+      [{label:'ㅋ', code:'KeyZ'}],
+      [{label:'ㅌ', code:'KeyX'}],
+      [{label:'ㅍ', code:'KeyV'}],
+      [{label:'ㅎ', code:'KeyG'}]
+    ];
+
+    function pushStep(target, step){
+      target.push({code:step.code, label:step.label, shift:!!step.shift});
+    }
+
+    function pushSteps(target, steps){
+      steps.forEach(step=>pushStep(target, step));
+    }
+
+    function buildSequenceFromHangul(word){
+      const seq=[];
+      for(const char of word){
+        if(char===' '){ seq.push({code:'Space', label:'␣'}); continue; }
+        const code = char.charCodeAt(0);
+        if(code<0xAC00 || code>0xD7A3) continue;
+        const syll = code - 0xAC00;
+        const i = Math.floor(syll / 588);
+        const m = Math.floor((syll % 588)/28);
+        const f = syll % 28;
+        const initial = choseong[i];
+        const medial = jungseong[m] || [];
+        const final = jongseong[f] || [];
+        if(initial) pushStep(seq, initial);
+        pushSteps(seq, medial);
+        pushSteps(seq, final);
+      }
+      return seq;
+    }
+
+    init();
+
+    function runTests(){
+      const out=[];
+      const log=(ok,msg)=>out.push(`${ok?'✅':'❌'} ${msg}`);
+      const savedLang = state.language;
+      const savedLevel = state.levelId;
+      try{
+        log(domKeys.size>0,'клавиатура построена');
+        rebuildLanguage('en', languages.en.levels[0].id);
+        const entry = currentEntry();
+        log(entry.sequence.length>0,'английские слова есть');
+        const seqEn = buildSequenceFromLatin('time');
+        log(seqEn[0].code==='KeyT','латинская раскладка: первая буква time — KeyT');
+        rebuildLanguage('ko', languages.ko.levels[0].id);
+        const seqKo = buildSequenceFromHangul('한');
+        log(seqKo.length===3,'한 раскладывается на 3 шага');
+        log(seqKo[0].label==='ㅎ','первая буква 한 — ㅎ');
+        state.cIndex=0; state.history=[]; state.words=[{text:'한', hint:'', display:'한', sequence:seqKo}]; state.wIndex=0;
+        handleKey({code:'KeyG', key:'ㅎ', shiftKey:false, preventDefault(){}});
+        log(state.cIndex===1,'верный шаг увеличивает индекс');
+        handleKey({code:'KeyA', key:'a', shiftKey:false, preventDefault(){}});
+        log(state.errors>0,'неверный шаг учитывает ошибку');
+      }catch(e){
+        log(false, 'Исключение: '+e.message);
+      }
+      rebuildLanguage(savedLang, savedLevel);
+      langSelect.value = savedLang;
+      if(savedLevel){ levelSelect.value = savedLevel; }
+      document.getElementById('test-output').textContent = out.join('\n');
+    }
+
+    runTests();
+  </script>
+</body>
+</html>
