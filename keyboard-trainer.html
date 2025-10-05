@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Клавиатурный тренажёр — корейская и латинская раскладки</title>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --panel:#111827;
+      --panel-2:#1f2937;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --ok:#10b981;
+      --err:#ef4444;
+      --next:#f59e0b;
+      --left:#60a5fa;
+      --right:#f472b6;
+      --key:#374151;
+      --key-edge:#4b5563;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+      background:linear-gradient(180deg,#0b1224,var(--bg)); color:var(--text);
+      display:grid; grid-template-rows:auto 1fr auto; gap:14px;
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 16px; background:var(--panel); border-bottom:1px solid #101525;
+      gap:12px; flex-wrap:wrap;
+    }
+    header .title{font-weight:700; letter-spacing:0.2px}
+    header .hint{color:var(--muted); font-size:14px}
+    header .controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    main{
+      display:grid; grid-template-columns:1fr 280px; gap:16px; padding:0 16px;
+    }
+
+    .lane{
+      background:var(--panel-2); border:1px solid #253049; border-radius:var(--radius);
+      min-height:240px; display:grid; place-items:center; position:relative; overflow:hidden;
+    }
+    .lane-inner{ width:min(900px,95%); position:relative; padding:28px 20px; }
+    .panel-bar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap }
+    .btn{ background:#233051; color:#dbeafe; border:1px solid #2f3d61; border-radius:10px; padding:8px 10px; cursor:pointer; }
+    .btn:active{ transform:translateY(1px) }
+    .meta{ color:var(--muted); font-size:14px }
+
+    .now-word{
+      font-variant-ligatures:none; display:grid; gap:10px; padding:14px 18px;
+      background:rgba(255,255,255,0.02); border-radius:12px; border:1px solid #26314a;
+      position:relative;
+    }
+    .display-word{font-size:40px; line-height:1.1; letter-spacing:1px; justify-self:flex-start}
+    .sequence{font-size:24px; letter-spacing:0.5px; display:flex; align-items:center; gap:2px}
+    .typed{ color:var(--ok); }
+    .pending{ color:var(--text); opacity:.9 }
+    .sequence .caret{ display:inline-block; position:relative; width:0; }
+    .sequence .caret::after{
+      content:""; position:absolute; left:-2px; top:10%; width:2px; height:80%;
+      background:var(--next); animation:blink 1.1s steps(2) infinite;
+      box-shadow:0 0 8px rgba(245,158,11,.6);
+    }
+    @keyframes blink{ 50%{opacity:0} }
+
+    .note-sequence{font-size:13px; color:var(--muted)}
+
+    .side{
+      background:var(--panel-2); border:1px solid #253049; border-radius:var(--radius);
+      padding:10px; display:flex; flex-direction:column; gap:8px; min-height:240px;
+    }
+    .side h3{margin:6px 6px 4px 6px; font-size:14px; color:var(--muted); font-weight:600}
+    .words{ overflow:auto; padding:6px; display:flex; flex-direction:column; gap:6px; }
+    .word{ padding:8px 10px; background:#192237; border:1px solid #253049; border-radius:10px; color:#cbd5e1; }
+    .word.current{ border-color:var(--next); outline:2px solid rgba(245,158,11,.25) }
+    .word.done{ opacity:.6; text-decoration:line-through; }
+
+    .kb-wrap{ padding:0 16px 16px }
+    .kb{
+      user-select:none; background:var(--panel); border-top:1px solid #101525; border-radius:18px 18px 0 0;
+      padding:16px; display:flex; flex-direction:column; gap:10px;
+    }
+    .row{ display:flex; gap:8px; justify-content:center; flex-wrap:nowrap }
+    .key{
+      min-width:36px; height:44px; background:var(--key); border:1px solid var(--key-edge);
+      border-radius:10px; display:grid; place-items:center; padding:0 8px; font-weight:600;
+      filter: drop-shadow(0 2px 0 #283040);
+      position:relative; color:#e2e8f0; font-size:15px;
+    }
+    .key.small{ min-width:48px }
+    .key.medium{ min-width:72px }
+    .key.large{ min-width:120px }
+    .key .cap{ opacity:.95; text-align:center }
+    .key.left{ box-shadow: inset 0 0 0 2px rgba(96,165,250,.15) }
+    .key.right{ box-shadow: inset 0 0 0 2px rgba(244,114,182,.15) }
+    .key.next{ outline:3px solid var(--next); z-index:2; }
+    .key.mod-hint{ outline:3px solid rgba(245,158,11,.45); z-index:1; }
+    .badge{
+      position:absolute; bottom:-20px; font-size:11px; padding:1px 6px; border-radius:999px;
+      background:#111827; border:1px solid #2a3349; color:#cbd5e1; white-space:nowrap
+    }
+
+    @media (max-width: 880px){
+      main{ grid-template-columns:1fr; }
+      .kb-wrap{ padding:0 8px 8px }
+      .display-word{font-size:32px}
+      .sequence{font-size:20px}
+    }
+
+    .error-flash{ animation:errFlash .28s ease; }
+    @keyframes errFlash{ from{background:rgba(239,68,68,.16);} to{background:rgba(255,255,255,0.02);} }
+
+    .shake{ animation:shake .28s cubic-bezier(.36,.07,.19,.97); }
+    @keyframes shake{
+      10%, 90% { transform: translateX(-1px); }
+      20%, 80% { transform: translateX(2px); }
+      30%, 50%, 70% { transform: translateX(-4px); }
+      40%, 60% { transform: translateX(4px); }
+    }
+
+    #test-panel{font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#cbd5e1; background:#0d1326; border-top:1px solid #101525; padding:8px 12px}
+    #test-panel summary{cursor:pointer}
+
+    select{
+      background:#1f2a44; color:#e2e8f0; border:1px solid #2f3d61; border-radius:8px; padding:6px 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">Клавиатурный тренажёр · корейская и латинская раскладки</div>
+    <div class="controls">
+      <label for="langSelect" class="hint" style="display:flex; align-items:center; gap:6px">Язык:
+        <select id="langSelect">
+          <option value="ko">Корейский · 2-буквенная</option>
+          <option value="en">Английский · QWERTY</option>
+        </select>
+      </label>
+      <button class="btn" id="btn-shuffle" title="Перемешать слова">Перемешать</button>
+      <button class="btn" id="btn-audio" title="Переключить звук">🔊 Звук: вкл</button>
+    </div>
+    <div class="hint">Фокус не нужен: начинайте печатать. Backspace — исправить, Space/Enter — переход к следующему слову.</div>
+  </header>
+
+  <main>
+    <section class="lane" aria-live="polite">
+      <div class="lane-inner">
+        <div class="panel-bar">
+          <div class="meta" id="meta">Слово 1 · Точность — 100% · Ошибок: 0</div>
+          <div class="note-sequence" id="seqNote">Печатаем раскладкой: корейская (2-пальцевая)</div>
+        </div>
+        <div class="now-word" id="nowWord">
+          <div class="display-word" id="displayWord"></div>
+          <div class="sequence">
+            <span class="typed" id="typed"></span>
+            <span class="caret" aria-hidden="true"></span>
+            <span class="pending" id="pending"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <h3>Список слов</h3>
+      <div class="words" id="wordList"></div>
+    </aside>
+  </main>
+
+  <div class="kb-wrap">
+    <div class="kb" id="kb"></div>
+  </div>
+
+  <details id="test-panel"><summary>Тесты (раскрыть)</summary><pre id="test-output">Запуск тестов…</pre></details>
+
+  <script>
+    const leftHandCodes = new Set([
+      'Backquote','Digit1','Digit2','Digit3','Digit4','Digit5',
+      'KeyQ','KeyW','KeyE','KeyR','KeyT','KeyA','KeyS','KeyD','KeyF','KeyG',
+      'KeyZ','KeyX','KeyC','KeyV'
+    ]);
+    const rightHandCodes = new Set([
+      'Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal',
+      'KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight','Backslash',
+      'KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote',
+      'KeyB','KeyN','KeyM','Comma','Period','Slash'
+    ]);
+
+    const layouts = {
+      en: {
+        name: 'латинская QWERTY',
+        rows: [
+          [
+            {code:'Backquote', label:'`'},
+            {code:'Digit1', label:'1'},
+            {code:'Digit2', label:'2'},
+            {code:'Digit3', label:'3'},
+            {code:'Digit4', label:'4'},
+            {code:'Digit5', label:'5'},
+            {code:'Digit6', label:'6'},
+            {code:'Digit7', label:'7'},
+            {code:'Digit8', label:'8'},
+            {code:'Digit9', label:'9'},
+            {code:'Digit0', label:'0'},
+            {code:'Minus', label:'-'},
+            {code:'Equal', label:'='},
+            {code:'Backspace', label:'Backspace', w:'small'}
+          ],[
+            {code:'Tab', label:'Tab', w:'small'},
+            {code:'KeyQ', label:'Q'},
+            {code:'KeyW', label:'W'},
+            {code:'KeyE', label:'E'},
+            {code:'KeyR', label:'R'},
+            {code:'KeyT', label:'T'},
+            {code:'KeyY', label:'Y'},
+            {code:'KeyU', label:'U'},
+            {code:'KeyI', label:'I'},
+            {code:'KeyO', label:'O'},
+            {code:'KeyP', label:'P'},
+            {code:'BracketLeft', label:'['},
+            {code:'BracketRight', label:']'},
+            {code:'Backslash', label:'\\'}
+          ],[
+            {code:'CapsLock', label:'Caps', w:'medium'},
+            {code:'KeyA', label:'A'},
+            {code:'KeyS', label:'S'},
+            {code:'KeyD', label:'D'},
+            {code:'KeyF', label:'F'},
+            {code:'KeyG', label:'G'},
+            {code:'KeyH', label:'H'},
+            {code:'KeyJ', label:'J'},
+            {code:'KeyK', label:'K'},
+            {code:'KeyL', label:'L'},
+            {code:'Semicolon', label:';'},
+            {code:'Quote', label:"'"},
+            {code:'Enter', label:'Enter', w:'medium'}
+          ],[
+            {code:'ShiftLeft', label:'Shift', w:'large'},
+            {code:'KeyZ', label:'Z'},
+            {code:'KeyX', label:'X'},
+            {code:'KeyC', label:'C'},
+            {code:'KeyV', label:'V'},
+            {code:'KeyB', label:'B'},
+            {code:'KeyN', label:'N'},
+            {code:'KeyM', label:'M'},
+            {code:'Comma', label:','},
+            {code:'Period', label:'.'},
+            {code:'Slash', label:'/'},
+            {code:'ShiftRight', label:'Shift', w:'large'}
+          ],[
+            {code:'Space', label:'Space', w:'large'}
+          ]
+        ]
+      },
+      ko: {
+        name: 'корейская 2-пальцевая',
+        rows: [
+          [
+            {code:'Backquote', label:'`'},
+            {code:'Digit1', label:'1'},
+            {code:'Digit2', label:'2'},
+            {code:'Digit3', label:'3'},
+            {code:'Digit4', label:'4'},
+            {code:'Digit5', label:'5'},
+            {code:'Digit6', label:'6'},
+            {code:'Digit7', label:'7'},
+            {code:'Digit8', label:'8'},
+            {code:'Digit9', label:'9'},
+            {code:'Digit0', label:'0'},
+            {code:'Minus', label:'-'},
+            {code:'Equal', label:'='},
+            {code:'Backspace', label:'Backspace', w:'small'}
+          ],[
+            {code:'Tab', label:'Tab', w:'small'},
+            {code:'KeyQ', label:'ㅂ'},
+            {code:'KeyW', label:'ㅈ'},
+            {code:'KeyE', label:'ㄷ'},
+            {code:'KeyR', label:'ㄱ'},
+            {code:'KeyT', label:'ㅅ'},
+            {code:'KeyY', label:'ㅛ'},
+            {code:'KeyU', label:'ㅕ'},
+            {code:'KeyI', label:'ㅑ'},
+            {code:'KeyO', label:'ㅐ'},
+            {code:'KeyP', label:'ㅔ'},
+            {code:'BracketLeft', label:'['},
+            {code:'BracketRight', label:']'},
+            {code:'Backslash', label:'\\'}
+          ],[
+            {code:'CapsLock', label:'Caps', w:'medium'},
+            {code:'KeyA', label:'ㅁ'},
+            {code:'KeyS', label:'ㄴ'},
+            {code:'KeyD', label:'ㅇ'},
+            {code:'KeyF', label:'ㄹ'},
+            {code:'KeyG', label:'ㅎ'},
+            {code:'KeyH', label:'ㅗ'},
+            {code:'KeyJ', label:'ㅓ'},
+            {code:'KeyK', label:'ㅏ'},
+            {code:'KeyL', label:'ㅣ'},
+            {code:'Semicolon', label:'；'},
+            {code:'Quote', label:"'"},
+            {code:'Enter', label:'Enter', w:'medium'}
+          ],[
+            {code:'ShiftLeft', label:'Shift', w:'large'},
+            {code:'KeyZ', label:'ㅋ'},
+            {code:'KeyX', label:'ㅌ'},
+            {code:'KeyC', label:'ㅊ'},
+            {code:'KeyV', label:'ㅍ'},
+            {code:'KeyB', label:'ㅠ'},
+            {code:'KeyN', label:'ㅜ'},
+            {code:'KeyM', label:'ㅡ'},
+            {code:'Comma', label:','},
+            {code:'Period', label:'.'},
+            {code:'Slash', label:'/'},
+            {code:'ShiftRight', label:'Shift', w:'large'}
+          ],[
+            {code:'Space', label:'Space', w:'large'}
+          ]
+        ]
+      }
+    };
+
+    const languages = {
+      en: {
+        name: 'Английский',
+        layout: 'en',
+        words: [
+          'time','type','left','right','space','enter','mouse','keyboard','screen','window',
+          'class','public','static','final','object','string','number','random','future','signal',
+          'river','ocean','planet','silent','listen','coffee','cookie','kitten','dragon','forest'
+        ],
+        toSequence: word => buildSequenceFromLatin(word)
+      },
+      ko: {
+        name: 'Корейский',
+        layout: 'ko',
+        words: [
+          '한글', '사랑', '안녕', '바다', '하늘', '친구', '학교', '가족', '아침', '노래',
+          '서울', '바람', '시간', '마음', '여행', '한국어', '커피', '도시', '영화', '생일',
+          '시장', '꽃길', '고양이', '기쁨', '바위', '문화', '바다빛', '소리', '기억', '바람결'
+        ],
+        toSequence: word => buildSequenceFromHangul(word)
+      }
+    };
+
+    const state = {
+      language: 'ko',
+      words: [],
+      wIndex: 0,
+      cIndex: 0,
+      typedTotal: 0,
+      errors: 0,
+      audioOn: true,
+      history: [],
+      layout: 'ko'
+    };
+
+    const wordListEl = document.getElementById('wordList');
+    const typedEl = document.getElementById('typed');
+    const pendingEl = document.getElementById('pending');
+    const metaEl = document.getElementById('meta');
+    const displayWordEl = document.getElementById('displayWord');
+    const seqNoteEl = document.getElementById('seqNote');
+    const langSelect = document.getElementById('langSelect');
+
+    function shuffle(arr){
+      const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]} return a;
+    }
+
+    function buildEntries(langKey){
+      const lang = languages[langKey];
+      return shuffle(lang.words).map(w=>({
+        display: w,
+        sequence: lang.toSequence(w)
+      }));
+    }
+
+    function currentEntry(){ return state.words[state.wIndex] || {display:'', sequence:[]}; }
+    function currentSequence(){ return currentEntry().sequence; }
+
+    function renderWordList(){
+      wordListEl.innerHTML = '';
+      state.words.forEach((entry,i)=>{
+        const div=document.createElement('div');
+        div.className='word'+(i<state.wIndex?' done':'')+(i===state.wIndex?' current':'');
+        div.textContent=entry.display;
+        wordListEl.appendChild(div);
+      });
+      wordListEl.querySelector('.current')?.scrollIntoView({block:'nearest'});
+    }
+
+    function renderCenter(){
+      const entry=currentEntry();
+      displayWordEl.textContent = entry.display || '…';
+      const seq = currentSequence();
+      const pendingSeq = seq.slice(state.cIndex).map(step=>step.label).join('');
+      typedEl.textContent = state.history.join('');
+      pendingEl.textContent = pendingSeq;
+      const doneCount = state.typedTotal;
+      const acc = doneCount ? Math.max(0, Math.round(100*(doneCount - state.errors)/doneCount)) : 100;
+      metaEl.textContent = `Слово ${Math.min(state.wIndex+1,state.words.length)} · Точность — ${acc}% · Ошибок: ${state.errors}`;
+      seqNoteEl.textContent = `Печатаем раскладкой: ${layouts[state.layout].name}`;
+      highlightNextStep(nextStep());
+    }
+
+    function nextStep(){
+      const seq = currentSequence();
+      return seq[state.cIndex] || null;
+    }
+
+    const kbEl = document.getElementById('kb');
+    const domKeys = new Map();
+    let lastNextEl=null, lastBadge=null, lastModEls=[];
+
+    function buildKeyboard(layoutKey){
+      const layout = layouts[layoutKey];
+      kbEl.innerHTML=''; domKeys.clear();
+      layout.rows.forEach(row=>{
+        const r=document.createElement('div'); r.className='row';
+        row.forEach(key=>{
+          const el=document.createElement('div'); el.className='key '+(key.w||'');
+          const cap=document.createElement('div'); cap.className='cap'; cap.textContent=key.label;
+          el.appendChild(cap);
+          el.dataset.code = key.code;
+          domKeys.set(`code:${key.code}`, el);
+          if(leftHandCodes.has(key.code)) el.classList.add('left');
+          if(rightHandCodes.has(key.code)) el.classList.add('right');
+          r.appendChild(el);
+        });
+        kbEl.appendChild(r);
+      });
+    }
+
+    function highlightNextStep(step){
+      if(lastNextEl){ lastNextEl.classList.remove('next'); lastBadge?.remove(); lastBadge=null; lastNextEl=null; }
+      if(lastModEls.length){ lastModEls.forEach(el=>el.classList.remove('mod-hint')); lastModEls=[]; }
+      if(!step) return;
+      const el = domKeys.get(`code:${step.code}`);
+      if(!el) return;
+      el.classList.add('next');
+      const badge = document.createElement('div'); badge.className='badge';
+      const hand = leftHandCodes.has(step.code) ? 'левая' : (rightHandCodes.has(step.code) ? 'правая' : '');
+      badge.textContent = hand ? `${hand} рука${step.shift?' · Shift':''}` : (step.shift?'Shift':'');
+      if(hand==='левая') badge.style.borderColor = 'rgba(96,165,250,.7)';
+      if(hand==='правая') badge.style.borderColor = 'rgba(244,114,182,.7)';
+      if(step.shift){
+        const shiftLeft = domKeys.get('code:ShiftLeft');
+        const shiftRight = domKeys.get('code:ShiftRight');
+        shiftLeft?.classList.add('mod-hint');
+        shiftRight?.classList.add('mod-hint');
+        lastModEls = [shiftLeft, shiftRight].filter(Boolean);
+      }
+      el.appendChild(badge);
+      lastNextEl=el; lastBadge=badge;
+    }
+
+    let audioCtx = null;
+    function ensureAudio(){
+      if(!state.audioOn) return null;
+      if(!audioCtx){
+        try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+        catch(e){ audioCtx = null; }
+      }
+      return audioCtx;
+    }
+
+    function blip(fStart=660, fEnd=660, dur=0.06, type='sine', gain=0.08){
+      const ctx = ensureAudio(); if(!ctx) return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type=type;
+      o.frequency.setValueAtTime(fStart, ctx.currentTime);
+      if(fEnd!==fStart){ o.frequency.exponentialRampToValueAtTime(Math.max(40,fEnd), ctx.currentTime+dur*0.9); }
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(gain, ctx.currentTime+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+      o.connect(g).connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime+dur+0.005);
+    }
+
+    function playError(){ blip(240,140,0.16,'square',0.12); }
+    function playCorrect(){ blip(760,760,0.04,'triangle',0.06); }
+
+    function flashError(step){
+      const lane = document.querySelector('.lane');
+      const box = document.getElementById('nowWord');
+      box.classList.remove('error-flash');
+      void box.offsetWidth;
+      box.classList.add('error-flash');
+      lane.classList.remove('shake');
+      void lane.offsetWidth;
+      lane.classList.add('shake');
+      lane.addEventListener('animationend', ()=> lane.classList.remove('shake'), {once:true});
+      if(step){
+        const el = domKeys.get(`code:${step.code}`);
+        el?.animate([
+          {transform:'translateY(0)', boxShadow:'inset 0 0 0 2px rgba(239,68,68,.4)'},
+          {transform:'translateY(2px)'}
+        ], {duration:120, easing:'ease-out'});
+      }
+      playError();
+    }
+
+    function resetHistory(){
+      state.history = [];
+    }
+
+    function advanceWord(){
+      state.wIndex++; state.cIndex=0; resetHistory();
+      if(state.wIndex>=state.words.length){
+        state.words = buildEntries(state.language);
+        state.wIndex = 0; state.errors=0; state.typedTotal=0;
+      }
+      renderWordList();
+      renderCenter();
+    }
+
+    function handleStepInput(step){
+      state.history.push(step.label);
+      state.cIndex++;
+      playCorrect();
+      renderCenter();
+    }
+
+    const printableExtra = new Set(['Minus','Equal','BracketLeft','BracketRight','Backslash','Semicolon','Quote','Comma','Period','Slash']);
+
+    function handleKey(e){
+      const entry = currentEntry();
+      if(!entry) return;
+      const seq = currentSequence();
+
+      if(e.key === 'Backspace'){
+        if(state.cIndex>0){
+          state.cIndex--;
+          state.history.pop();
+          state.typedTotal++;
+          renderCenter();
+        }
+        e.preventDefault();
+        return;
+      }
+
+      if(e.key === 'Enter'){
+        if(state.cIndex >= seq.length){
+          advanceWord();
+        }
+        e.preventDefault();
+        return;
+      }
+
+      const step = nextStep();
+      if(!step) return;
+      if(e.code === 'Space' && step.code !== 'Space'){
+        if(state.cIndex >= seq.length){
+          advanceWord();
+        }
+        e.preventDefault();
+        return;
+      }
+      const isPrintable = !!e.code && (e.code.startsWith('Key') || e.code.startsWith('Digit') || printableExtra.has(e.code) || e.code==='Space');
+      if(!isPrintable) return;
+
+      state.typedTotal++;
+      const codeMatch = e.code === step.code;
+      const shiftMatch = step.shift ? e.shiftKey : true;
+      if(codeMatch && shiftMatch){
+        handleStepInput(step);
+      } else {
+        state.errors++;
+        flashError(step);
+        renderCenter();
+      }
+      e.preventDefault();
+    }
+
+    function rebuildLanguage(langKey){
+      state.language = langKey;
+      state.layout = languages[langKey].layout;
+      state.words = buildEntries(langKey);
+      state.wIndex = 0; state.cIndex=0; state.errors=0; state.typedTotal=0;
+      resetHistory();
+      buildKeyboard(state.layout);
+      renderWordList();
+      renderCenter();
+    }
+
+    document.getElementById('btn-shuffle').addEventListener('click',()=>{
+      state.words = buildEntries(state.language);
+      state.wIndex=0; state.cIndex=0; state.errors=0; state.typedTotal=0; resetHistory();
+      renderWordList(); renderCenter();
+      blip(520,520,0.05,'sine',0.05);
+    });
+
+    const btnAudio = document.getElementById('btn-audio');
+    btnAudio.addEventListener('click',()=>{
+      state.audioOn = !state.audioOn;
+      btnAudio.textContent = state.audioOn ? '🔊 Звук: вкл' : '🔇 Звук: выкл';
+      if(state.audioOn) blip(700,900,0.07,'triangle',0.06); else blip(200,160,0.08,'square',0.06);
+    });
+
+    langSelect.addEventListener('change', ()=>{
+      rebuildLanguage(langSelect.value);
+    });
+
+    window.addEventListener('keydown', handleKey, {passive:false});
+
+    kbEl.addEventListener('click',(e)=>{
+      const keyEl = e.target.closest('.key');
+      if(!keyEl) return;
+      const codeName = keyEl.dataset.code;
+      if(!codeName || codeName.startsWith('Shift')) return;
+      const step = nextStep();
+      const eventInit = {
+        code: codeName,
+        key: keyEl.textContent.trim(),
+        shiftKey: !!(step && step.shift),
+        preventDefault(){}
+      };
+      handleKey(eventInit);
+    });
+
+    function init(){
+      rebuildLanguage(state.language);
+      langSelect.value = state.language;
+    }
+
+    const latinMap = new Map([
+      ...'abcdefghijklmnopqrstuvwxyz'.split('').map(ch=>[ch,{code:`Key${ch.toUpperCase()}`,label:ch}]),
+      ...'0123456789'.split('').map(d=>[d,{code:`Digit${d}`,label:d}]),
+      ['`',{code:'Backquote',label:'`'}],
+      ['-',{code:'Minus',label:'-'}],
+      ['=',{code:'Equal',label:'='}],
+      ['[',{code:'BracketLeft',label:'['}],
+      [']',{code:'BracketRight',label:']'}],
+      ['\\',{code:'Backslash',label:'\\'}],
+      [';',{code:'Semicolon',label:';'}],
+      ['\'',{code:'Quote',label:"'"}],
+      [',',{code:'Comma',label:','}],
+      ['.',{code:'Period',label:'.'}],
+      ['/',{code:'Slash',label:'/'}],
+      [' ',{code:'Space',label:'␣'}]
+    ]);
+
+    function buildSequenceFromLatin(word){
+      const seq = [];
+      for(const ch of word){
+        const lower = ch.toLowerCase();
+        const meta = latinMap.get(lower);
+        if(!meta) continue;
+        seq.push({code:meta.code, label:lower});
+      }
+      return seq;
+    }
+
+    const choseong = [
+      {label:'ㄱ', code:'KeyR'}, {label:'ㄲ', code:'KeyR', shift:true}, {label:'ㄴ', code:'KeyS'}, {label:'ㄷ', code:'KeyE'},
+      {label:'ㄸ', code:'KeyE', shift:true}, {label:'ㄹ', code:'KeyF'}, {label:'ㅁ', code:'KeyA'}, {label:'ㅂ', code:'KeyQ'},
+      {label:'ㅃ', code:'KeyQ', shift:true}, {label:'ㅅ', code:'KeyT'}, {label:'ㅆ', code:'KeyT', shift:true}, {label:'ㅇ', code:'KeyD'},
+      {label:'ㅈ', code:'KeyW'}, {label:'ㅉ', code:'KeyW', shift:true}, {label:'ㅊ', code:'KeyC'}, {label:'ㅋ', code:'KeyZ'},
+      {label:'ㅌ', code:'KeyX'}, {label:'ㅍ', code:'KeyV'}, {label:'ㅎ', code:'KeyG'}
+    ];
+
+    const jungseong = [
+      [{label:'ㅏ', code:'KeyK'}],
+      [{label:'ㅐ', code:'KeyO'}],
+      [{label:'ㅑ', code:'KeyI'}],
+      [{label:'ㅒ', code:'KeyO', shift:true}],
+      [{label:'ㅓ', code:'KeyJ'}],
+      [{label:'ㅔ', code:'KeyP'}],
+      [{label:'ㅕ', code:'KeyU'}],
+      [{label:'ㅖ', code:'KeyP', shift:true}],
+      [{label:'ㅗ', code:'KeyH'}],
+      [{label:'ㅗ', code:'KeyH'}, {label:'ㅏ', code:'KeyK'}],
+      [{label:'ㅗ', code:'KeyH'}, {label:'ㅐ', code:'KeyO'}],
+      [{label:'ㅗ', code:'KeyH'}, {label:'ㅣ', code:'KeyL'}],
+      [{label:'ㅛ', code:'KeyY'}],
+      [{label:'ㅜ', code:'KeyN'}],
+      [{label:'ㅜ', code:'KeyN'}, {label:'ㅓ', code:'KeyJ'}],
+      [{label:'ㅜ', code:'KeyN'}, {label:'ㅔ', code:'KeyP'}],
+      [{label:'ㅜ', code:'KeyN'}, {label:'ㅣ', code:'KeyL'}],
+      [{label:'ㅠ', code:'KeyB'}],
+      [{label:'ㅡ', code:'KeyM'}],
+      [{label:'ㅡ', code:'KeyM'}, {label:'ㅣ', code:'KeyL'}],
+      [{label:'ㅣ', code:'KeyL'}]
+    ];
+
+    const jongseong = [
+      [],
+      [{label:'ㄱ', code:'KeyR'}],
+      [{label:'ㄲ', code:'KeyR', shift:true}],
+      [{label:'ㄱ', code:'KeyR'}, {label:'ㅅ', code:'KeyT'}],
+      [{label:'ㄴ', code:'KeyS'}],
+      [{label:'ㄴ', code:'KeyS'}, {label:'ㅈ', code:'KeyW'}],
+      [{label:'ㄴ', code:'KeyS'}, {label:'ㅎ', code:'KeyG'}],
+      [{label:'ㄷ', code:'KeyE'}],
+      [{label:'ㄹ', code:'KeyF'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㄱ', code:'KeyR'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅁ', code:'KeyA'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅂ', code:'KeyQ'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅅ', code:'KeyT'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅌ', code:'KeyX'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅍ', code:'KeyV'}],
+      [{label:'ㄹ', code:'KeyF'}, {label:'ㅎ', code:'KeyG'}],
+      [{label:'ㅁ', code:'KeyA'}],
+      [{label:'ㅂ', code:'KeyQ'}],
+      [{label:'ㅂ', code:'KeyQ'}, {label:'ㅅ', code:'KeyT'}],
+      [{label:'ㅅ', code:'KeyT'}],
+      [{label:'ㅆ', code:'KeyT', shift:true}],
+      [{label:'ㅇ', code:'KeyD'}],
+      [{label:'ㅈ', code:'KeyW'}],
+      [{label:'ㅊ', code:'KeyC'}],
+      [{label:'ㅋ', code:'KeyZ'}],
+      [{label:'ㅌ', code:'KeyX'}],
+      [{label:'ㅍ', code:'KeyV'}],
+      [{label:'ㅎ', code:'KeyG'}]
+    ];
+
+    function pushStep(target, step){
+      target.push({code:step.code, label:step.label, shift:!!step.shift});
+    }
+
+    function pushSteps(target, steps){
+      steps.forEach(step=>pushStep(target, step));
+    }
+
+    function buildSequenceFromHangul(word){
+      const seq=[];
+      for(const char of word){
+        if(char===' '){ seq.push({code:'Space', label:'␣'}); continue; }
+        const code = char.charCodeAt(0);
+        if(code<0xAC00 || code>0xD7A3) continue;
+        const syll = code - 0xAC00;
+        const i = Math.floor(syll / 588);
+        const m = Math.floor((syll % 588)/28);
+        const f = syll % 28;
+        const initial = choseong[i];
+        const medial = jungseong[m] || [];
+        const final = jongseong[f] || [];
+        if(initial) pushStep(seq, initial);
+        pushSteps(seq, medial);
+        pushSteps(seq, final);
+      }
+      return seq;
+    }
+
+    init();
+
+    function runTests(){
+      const out=[];
+      const log=(ok,msg)=>out.push(`${ok?'✅':'❌'} ${msg}`);
+      const savedLang = state.language;
+      try{
+        log(domKeys.size>0,'клавиатура построена');
+        rebuildLanguage('en');
+        const entry = currentEntry();
+        log(entry.sequence.length>0,'английские слова есть');
+        const seqEn = buildSequenceFromLatin('time');
+        log(seqEn[0].code==='KeyT','латинская раскладка: первая буква time — KeyT');
+        rebuildLanguage('ko');
+        const seqKo = buildSequenceFromHangul('한');
+        log(seqKo.length===3,'한 раскладывается на 3 шага');
+        log(seqKo[0].label==='ㅎ','первая буква 한 — ㅎ');
+        state.cIndex=0; state.history=[]; state.words=[{display:'한', sequence:seqKo}]; state.wIndex=0;
+        handleKey({code:'KeyG', key:'ㅎ', shiftKey:false, preventDefault(){}});
+        log(state.cIndex===1,'верный шаг увеличивает индекс');
+        handleKey({code:'KeyA', key:'a', shiftKey:false, preventDefault(){}});
+        log(state.errors>0,'неверный шаг учитывает ошибку');
+      }catch(e){
+        log(false, 'Исключение: '+e.message);
+      }
+      rebuildLanguage(savedLang);
+      langSelect.value = savedLang;
+      document.getElementById('test-output').textContent = out.join('\n');
+    }
+
+    runTests();
+  </script>
+</body>
+</html>
